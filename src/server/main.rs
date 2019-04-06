@@ -1,3 +1,6 @@
+extern crate rand;
+
+mod laplace;
+
 fn main() {
-    println!("Hello, world!");
 }
