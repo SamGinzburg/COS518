@@ -1,3 +1,7 @@
+extern crate rand;
+
+mod laplace;
+mod onion;
+
 fn main() {
-    println!("Hello, world!");
 }
