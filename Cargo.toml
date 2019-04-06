@@ -3,6 +3,10 @@ name = "project"
 version = "0.1.0"
 authors = ["SamGinzburg <ginzburg.sam@gmail.com>"]
 
+[lib]
+name = "sharedlib"
+path = "src/lib/lib.rs"
+
 [[bin]]
 name = "server"
 path = "src/server/main.rs"
