@@ -4,6 +4,7 @@ extern crate cursive;
 
 use clap::{App};
 use cursive::Cursive;
+use cursive::views::{Dialog, TextView};
 
 fn main() {
     App::new("Vuvuzela Client")
