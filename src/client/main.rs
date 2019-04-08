@@ -1,8 +1,9 @@
 extern crate clap;
 extern crate sharedlib;
+extern crate cursive;
 
 use clap::{App};
-use sharedlib::example_fn;
+use cursive::Cursive;
 
 fn main() {
     App::new("Vuvuzela Client")
@@ -11,5 +12,15 @@ fn main() {
          .author("Sam Ginzburg")
          .author("Benjamin Kuykendall")
          .get_matches();
-    example_fn();
+
+    // set up main TUI context
+    let mut siv = Cursive::default();
+
+
+    siv.add_layer(Dialog::around(TextView::new("Hello Dialog!"))
+                         .title("Cursive")
+                         .button("Quit", |s| s.quit()));
+
+    // Starts the event loop.
+    siv.run();
 }

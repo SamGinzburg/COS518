@@ -17,3 +17,4 @@ path = "src/client/main.rs"
 
 [dependencies]
 clap = "2.32.0"
+cursive = "0.11"
