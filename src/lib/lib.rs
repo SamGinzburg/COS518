@@ -1,3 +1,6 @@
+extern crate openssl;
+extern crate rand;
+
 mod onion;
 
 pub fn example_fn() {
