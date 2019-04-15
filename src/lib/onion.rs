@@ -4,18 +4,26 @@ use crate::rand::Rng;
 // these are all dummy operations
 // need replace with crypto library
 
-type PrivateKey = i32;
-type PublicKey = i32;
-type DerivedKey = i32;
-type Message = String;
+pub type PrivateKey = i32;
+pub type PublicKey = i32;
+pub type DerivedKey = i32;
+pub type Message = String;
 
-fn keygen<T: Rng>(rng : &mut T) -> (PrivateKey, PublicKey) {
+pub fn blank_message(deaddrop : u32) -> Message {
+    // TODO: make length match real message
+    let mut m = String::new();
+    m.push_str(&deaddrop.to_string());
+    m.push_str("          ");
+    m.to_string()
+}
+
+pub fn keygen<T: Rng>(rng : &mut T) -> (PrivateKey, PublicKey) {
     let x = rng.gen();
     let y = 100 * x;
     (y, x)
 }
 
-fn wrap(k : &PublicKey, m : &Message) -> Message {
+pub fn wrap(k : &PublicKey, m : &Message) -> Message {
     let mut w = String::new();
     w.push_str(&k.to_string());
     w.push('|');
@@ -23,24 +31,44 @@ fn wrap(k : &PublicKey, m : &Message) -> Message {
     w.to_string()
 }
 
-fn unwrap(w : &Message) -> (PublicKey, Message) {
+pub fn unwrap(w : &Message) -> (PublicKey, Message) {
     let mut split = w.splitn(2, '|');
     let k = split.next().unwrap().parse::<i32>().unwrap();
     let m = split.next().unwrap();
     (k,m.to_string())
 }
 
-fn derive(k1 : &PrivateKey, k2: &PublicKey) -> DerivedKey {
+pub fn derive(k1 : &PrivateKey, k2: &PublicKey) -> DerivedKey {
     (k1 * k2)
 }
 
-fn encrypt(k : &DerivedKey, m : &Message) -> Message {
+pub fn encrypt(k : &DerivedKey, m : &Message) -> Message {
     m.clone()
 }
 
-fn decrypt(k : &DerivedKey, c : &Message) -> Message {
+pub fn decrypt(k : &DerivedKey, c : &Message) -> Message {
     c.clone()
 }
+
+
+// this method actually done once lower-level ones use crypto
+pub fn rec_wrap<T: Rng>(pks : &Vec<PublicKey>, m : &Message, rng : &mut T)
+                        -> (Vec<DerivedKey>, Message) {
+
+    let mut m = m.clone();
+    let mut dks = Vec::with_capacity(pks.len());
+
+    for pk_server in pks.iter().rev() {
+        let (sk, pk) = keygen(rng);
+        let dk = derive(&sk, &pk_server);
+        let c = encrypt(&dk, &m);
+        m = wrap(&pk, &c);
+        dks.push(dk);
+    }
+
+    (dks, m)
+}
+
 
 #[cfg(test)]
 mod text {
@@ -117,5 +145,27 @@ mod text {
         // client
         let r_client = decrypt(&d_client, &c_server);
         assert_eq!(r, r_client);
+    }
+
+    #[test]
+    fn rec_wrap_inverts() {
+        let mut rng = StepRng::new(0,1);
+        let (sk1, pk1) = keygen(&mut rng);
+        let (sk2, pk2) = keygen(&mut rng);
+
+        let m = "Hello, onions!".to_string();
+        let (dks, w) = rec_wrap(&vec!(pk1, pk2), &m, &mut rng);
+
+        // server 1 unwrap decrypt
+        let (pku, c) = unwrap(&w);
+        let d = derive(&sk1, &pku);
+        let w = decrypt(&d, &c);
+
+        // server 2 unwrap decrypt
+        let (pku, c) = unwrap(&w);
+        let d = derive(&sk2, &pku);
+        let w = decrypt(&d, &c);
+
+        assert_eq!(m, w);
     }
 }
