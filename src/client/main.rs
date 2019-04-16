@@ -8,10 +8,7 @@ use cursive::view::*;
 use cursive::views::*;
 use cursive::event::*;
 
-fn send_message(s: &mut Cursive, name: &str) {
-    if name.is_empty() {
-    } else {
-    }
+fn send_message(s: &mut Cursive, message: &str) {
 }
 
 fn main() {
