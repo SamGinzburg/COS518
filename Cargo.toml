@@ -1,6 +1,7 @@
 [package]
 name = "project"
 version = "0.1.0"
+edition = "2018"
 authors = ["SamGinzburg <ginzburg.sam@gmail.com>", "Benjamin Kuykendall <brk@princeton.edu>"]
 
 [lib]
@@ -20,3 +21,7 @@ clap = "2.32.0"
 cursive = "0.11"
 rand = "0.6.5"
 openssl = "0.10.20"
+tarpc = { version = "0.16.0", features = ["serde"] }
+tarpc-bincode-transport = "0.5.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = "0.1.18"
