@@ -3,7 +3,7 @@
 #[macro_use] extern crate tarpc;
 
 mod onion;
-mod rpc;
+pub mod rpc;
 
 pub fn example_fn() {
     println!("testing123");

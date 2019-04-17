@@ -5,23 +5,34 @@
 extern crate rand;
 extern crate clap;
 extern crate tarpc_bincode_transport;
+extern crate tokio;
 extern crate sharedlib;
 
+use crate::tarpc::futures::StreamExt;
+use crate::tarpc::futures::TryFutureExt;
+use crate::tarpc::futures::FutureExt;
+use crate::tarpc::futures::compat::Executor01CompatExt;
+
 use clap::{App};
-use std::{io, net::SocketAddr};
+
 use tarpc::{
-    context,
-    Client,
-    Server,
     server::{Handler},
 };
 use tarpc_bincode_transport::listen;
-use tarpc_bincode_transport::Incoming;
+
+use sharedlib::rpc::HeadServer;
+use sharedlib::rpc::serve;
+
+use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+use tarpc::server;
 
 mod laplace;
 
-async fn run(server_addr: &SocketAddr) -> io::Result<()> {
-    let transport: tarpc_bincode_transport::Incoming<(), ()> = listen(&server_addr)?;
+async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
+    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
+    let transport = listen(&server_addr)?;
     let addr = transport.local_addr();
 
     // The server is configured with the defaults.
@@ -47,4 +58,11 @@ fn main() {
          .author("Benjamin Kuykendall")
          .get_matches();
 
+    tarpc::init(tokio::executor::DefaultExecutor::current().compat());
+    // TODO: set ip/port combo via cli flags
+    tokio::run(run_service("", 8080)
+               .map_err(|e| eprintln!("RPC Error: {}", e))
+               .boxed()
+               .compat(),
+    );
 }
