@@ -1,12 +1,10 @@
 #![feature(futures_api, pin, arbitrary_self_types, await_macro, async_await, proc_macro_hygiene)]
 
-#[macro_use] extern crate tarpc;
-extern crate openssl;
+#[macro_use] extern crate lazy_static;
 extern crate rand;
+extern crate ring;
+#[macro_use] extern crate tarpc;
 
 pub mod onion;
 pub mod rpc;
 
-pub fn example_fn() {
-    println!("testing123");
-}
