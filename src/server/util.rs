@@ -28,13 +28,14 @@ where D : Distribution<u32> {
     for wrapped in input {
         let (pk, cipher) = onion::unwrap(&wrapped);
         let dk = onion::derive(&settings.sk, &pk);
-        keys.push(dk);
+        let inner = onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward);
 
-        let inner = onion::decrypt(&dk, &cipher);
+        keys.push(dk);
         inners.push(inner);
     }
 
     // add noise
+    // TODO: n2 need only be half this large
     let n1 = settings.noise.sample(&mut rng);
     let n2 = settings.noise.sample(&mut rng);
 
@@ -45,7 +46,7 @@ where D : Distribution<u32> {
     for _i in 0..n1 {
         let deaddrop = rng.gen();
         let m = onion::blank_message(deaddrop);
-        let (_dks, wrapped) = onion::rec_wrap(&settings.other_pks, &m, &mut rng);
+        let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
         inners.push(wrapped);
     }
 
@@ -53,7 +54,7 @@ where D : Distribution<u32> {
         let deaddrop = rng.gen();
         for _j in 0..2 {
             let m = onion::blank_message(deaddrop);
-            let (_dks, wrapped) = onion::rec_wrap(&settings.other_pks, &m, &mut rng);
+            let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
             inners.push(wrapped);
         }
     }
@@ -73,7 +74,8 @@ fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     // re-encrypt
     let mut ciphers : Vec<onion::Message> = Vec::with_capacity(state.n);
     for (m, dk) in unpermuted.iter().zip(state.keys.iter()) {
-        let c = onion::encrypt(dk, m);
+        // TODO: avoid cloning m
+        let c = onion::encrypt(dk, m.to_vec(), onion::EncryptionPurpose::Backward);
         ciphers.push(c);
     }
 
