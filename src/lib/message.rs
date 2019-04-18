@@ -1,6 +1,7 @@
 use crate::rand::Rng;
 use crate::onion;
 
+// may need longer; should store encrypted message
 pub const CONTENT_SIZE : usize = 16;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
