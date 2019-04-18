@@ -6,5 +6,6 @@ extern crate ring;
 #[macro_use] extern crate tarpc;
 
 pub mod onion;
+pub mod message;
 pub mod rpc;
 

@@ -49,7 +49,7 @@ impl Permutation {
 }
 
 #[cfg(test)]
-mod text {
+mod test {
     use super::*;
 
     #[test]

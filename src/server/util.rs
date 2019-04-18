@@ -1,4 +1,4 @@
-use sharedlib::onion;
+use sharedlib::{onion, message};
 use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
@@ -43,16 +43,14 @@ where D : Distribution<u32> {
     let m = n + adding;
 
     for _i in 0..n1 {
-        let deaddrop = rng.gen();
-        let m = onion::blank_message(deaddrop);
+        let m = message::blank(&message::Deaddrop::sample());
         let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
         inners.push(wrapped);
     }
 
     for _i in 0..n2 {
-        let deaddrop = rng.gen();
         for _j in 0..2 {
-            let m = onion::blank_message(deaddrop);
+            let m = message::blank(&message::Deaddrop::sample());
             let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
             inners.push(wrapped);
         }
@@ -79,3 +77,4 @@ fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
 
     ciphers
 }
+
