@@ -35,9 +35,8 @@ where D : Distribution<u32> {
     }
 
     // add noise
-    // TODO: n2 need only be half this large
     let n1 = settings.noise.sample(&mut rng);
-    let n2 = settings.noise.sample(&mut rng);
+    let n2 = settings.noise.sample(&mut rng) / 2;
 
     let adding = (n1 + 2*n2) as usize;
     inners.reserve(adding);
