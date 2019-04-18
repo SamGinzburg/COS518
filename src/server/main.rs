@@ -29,6 +29,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use tarpc::server;
 
 mod laplace;
+mod permute;
 mod util;
 
 async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {

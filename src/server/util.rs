@@ -1,7 +1,7 @@
 use sharedlib::onion;
+use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
-use crate::rand::prelude::SliceRandom;
 
 struct Settings<D : Distribution<u32>> {
     other_pks: Vec<onion::PublicKey>,
@@ -11,7 +11,7 @@ struct Settings<D : Distribution<u32>> {
 
 struct State {
     keys: Vec<onion::DerivedKey>,
-    permutation: Vec<usize>,
+    permutation: Permutation,
     n: usize,
 }
 
@@ -59,16 +59,15 @@ where D : Distribution<u32> {
     }
     
     // permute
-    let mut permutation : Vec<usize> = (1..m).collect();
-    permutation.shuffle(&mut rng);
-    let output : Vec<onion::Message> = permute(&permutation, inners);
+    let permutation = Permutation::sample(m);
+    let output : Vec<onion::Message> = permutation.apply(inners);
 
     (State{ keys, permutation, n }, output)
 }
 
 fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
-    let unpermuted = unpermute(&state.permutation, input);
+    let unpermuted = state.permutation.apply_inverse(input);
 
     // re-encrypt
     let mut ciphers : Vec<onion::Message> = Vec::with_capacity(state.n);
@@ -79,34 +78,4 @@ fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     }
 
     ciphers
-}
-
-fn permute<T>(p : &Vec<usize>, input : Vec<T>) -> Vec<T> {
-    let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
-    for x in input {
-        tmp.push(Some(x));
-    }
-
-    let mut output : Vec<T> = Vec::with_capacity(tmp.len());
-    for i in p {
-        tmp.push(None);
-        output.push(tmp.swap_remove(*i).unwrap());
-    }
-
-    output
-}
-
-fn unpermute<T>(p : &Vec<usize>, input : Vec<T>) -> Vec<T> {
-    let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
-    for x in input {
-        tmp.push(Some(x));
-    }
-
-    let mut output : Vec<T> = Vec::with_capacity(tmp.len());
-    for i in 0..tmp.len() {
-        tmp.push(None);
-        output.push(tmp.swap_remove(*p.get(i).unwrap()).unwrap());
-    }
-
-    output
 }
