@@ -1,7 +1,7 @@
-use sharedlib::onion;
+use sharedlib::{onion, message};
+use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
-use crate::rand::prelude::SliceRandom;
 
 struct Settings<D : Distribution<u32>> {
     other_pks: Vec<onion::PublicKey>,
@@ -11,7 +11,7 @@ struct Settings<D : Distribution<u32>> {
 
 struct State {
     keys: Vec<onion::DerivedKey>,
-    permutation: Vec<usize>,
+    permutation: Permutation,
     n: usize,
 }
 
@@ -35,41 +35,37 @@ where D : Distribution<u32> {
     }
 
     // add noise
-    // TODO: n2 need only be half this large
     let n1 = settings.noise.sample(&mut rng);
-    let n2 = settings.noise.sample(&mut rng);
+    let n2 = settings.noise.sample(&mut rng) / 2;
 
     let adding = (n1 + 2*n2) as usize;
     inners.reserve(adding);
     let m = n + adding;
 
     for _i in 0..n1 {
-        let deaddrop = rng.gen();
-        let m = onion::blank_message(deaddrop);
+        let m = message::blank(&message::Deaddrop::sample());
         let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
         inners.push(wrapped);
     }
 
     for _i in 0..n2 {
-        let deaddrop = rng.gen();
         for _j in 0..2 {
-            let m = onion::blank_message(deaddrop);
+            let m = message::blank(&message::Deaddrop::sample());
             let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
             inners.push(wrapped);
         }
     }
     
     // permute
-    let mut permutation : Vec<usize> = (1..m).collect();
-    permutation.shuffle(&mut rng);
-    let output : Vec<onion::Message> = permute(&permutation, inners);
+    let permutation = Permutation::sample(m);
+    let output : Vec<onion::Message> = permutation.apply(inners);
 
     (State{ keys, permutation, n }, output)
 }
 
 fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
-    let unpermuted = unpermute(&state.permutation, input);
+    let unpermuted = state.permutation.apply_inverse(input);
 
     // re-encrypt
     let mut ciphers : Vec<onion::Message> = Vec::with_capacity(state.n);
@@ -82,32 +78,3 @@ fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     ciphers
 }
 
-fn permute<T>(p : &Vec<usize>, input : Vec<T>) -> Vec<T> {
-    let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
-    for x in input {
-        tmp.push(Some(x));
-    }
-
-    let mut output : Vec<T> = Vec::with_capacity(tmp.len());
-    for i in p {
-        tmp.push(None);
-        output.push(tmp.swap_remove(*i).unwrap());
-    }
-
-    output
-}
-
-fn unpermute<T>(p : &Vec<usize>, input : Vec<T>) -> Vec<T> {
-    let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
-    for x in input {
-        tmp.push(Some(x));
-    }
-
-    let mut output : Vec<T> = Vec::with_capacity(tmp.len());
-    for i in 0..tmp.len() {
-        tmp.push(None);
-        output.push(tmp.swap_remove(*p.get(i).unwrap()).unwrap());
-    }
-
-    output
-}

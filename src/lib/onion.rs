@@ -29,15 +29,6 @@ macro_rules! rng {
     () => {&*(RNG.lock().expect("Could not obtain Ring RNG."))}
 }
 
-// TODO: make length match real message
-// TODO: move this somewhere else
-pub fn blank_message(deaddrop : u32) -> Message {
-    let mut m = String::new();
-    m.push_str(&deaddrop.to_string());
-    m.push_str("          ");
-    m.to_string().as_bytes().to_vec()
-}
-
 // TODO: pass errors up!
 
 pub fn keygen() -> (PrivateKey, PublicKey) {
