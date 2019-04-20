@@ -1,14 +1,14 @@
 use tarpc::futures::*;
 use tarpc::futures::future::Ready;
 use tarpc::{context};
-use serde::{Deserialize, Serialize};
+//use serde::{Deserialize, Serialize};
 
 service! {
     rpc get(name: String) -> String;
     rpc put(x: i32, y: i32) -> i32;
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug)]
 pub struct HeadServer;
 
 impl self::Service for HeadServer {

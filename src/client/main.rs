@@ -1,16 +1,28 @@
 #![feature(futures_api, arbitrary_self_types, await_macro, async_await)]
 
+#[macro_use] extern crate tarpc;
+
 extern crate clap;
 extern crate sharedlib;
 extern crate cursive;
 extern crate tarpc_bincode_transport;
+extern crate futures;
+extern crate serde;
 
 use clap::{App};
 use cursive::Cursive;
 use cursive::view::*;
 use cursive::views::*;
 
-mod send;
+use std::process::exit;
+
+use crate::tarpc::futures::StreamExt;
+use crate::tarpc::futures::TryFutureExt;
+use crate::tarpc::futures::FutureExt;
+use crate::tarpc::futures::compat::Executor01CompatExt;
+
+use crate::send::rpc_get;
+pub mod send;
 
 fn send_message(s: &mut Cursive, message: &str) {
     let mut text_area: ViewRef<TextView> = s.find_id("output").unwrap();
@@ -32,6 +44,15 @@ fn main() {
          .author("Sam Ginzburg")
          .author("Benjamin Kuykendall")
          .get_matches();
+
+    tarpc::init(tokio::executor::DefaultExecutor::current().compat());
+    // TODO: set ip/port combo via cli flags
+    tokio::run(rpc_get(&"", 8080)
+               .map_err(|e| eprintln!("RPC Error: {}", e))
+               .boxed()
+               .compat(),
+    );
+    exit(0);
 
     // set up main TUI context
     let mut cursive = Cursive::default();
