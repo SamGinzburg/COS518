@@ -1,5 +1,4 @@
-#![feature(futures_api, arbitrary_self_types, await_macro, async_await)]
-
+#![feature(type_ascription, generators, proc_macro_hygiene, futures_api, arbitrary_self_types, await_macro, async_await)]
 #[macro_use] extern crate tarpc;
 
 extern crate clap;
@@ -8,6 +7,8 @@ extern crate cursive;
 extern crate tarpc_bincode_transport;
 extern crate futures;
 extern crate serde;
+extern crate futures_await_async_macro;
+extern crate tokio;
 
 use clap::{App};
 use cursive::Cursive;
@@ -20,9 +21,15 @@ use crate::tarpc::futures::StreamExt;
 use crate::tarpc::futures::TryFutureExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::compat::Executor01CompatExt;
+use crate::send::rpc_put;
+use crate::fetch::rpc_get;
+use std::thread;
 
-use crate::send::rpc_get;
+use tokio::prelude::future::{ok, loop_fn, Future, FutureResult, Loop};
+
+
 pub mod send;
+pub mod fetch;
 
 fn send_message(s: &mut Cursive, message: &str) {
     let mut text_area: ViewRef<TextView> = s.find_id("output").unwrap();
@@ -34,7 +41,14 @@ fn send_message(s: &mut Cursive, message: &str) {
     let mut input: String = "".to_string();
     input.push_str(&message.to_string());
     input.push_str("\n");
-    text_area.append(input);
+    text_area.append(input.clone());
+
+    // TODO: set ip/port combo via cli flags
+    tokio::run(rpc_put("127.0.0.1".to_string(), 8080, input.clone())
+               .map_err(|e| eprintln!("RPC Error: {}", e))
+               .boxed()
+               .compat(),
+    );
 }
 
 fn main() {
@@ -46,13 +60,6 @@ fn main() {
          .get_matches();
 
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
-    // TODO: set ip/port combo via cli flags
-    tokio::run(rpc_get(&"", 8080)
-               .map_err(|e| eprintln!("RPC Error: {}", e))
-               .boxed()
-               .compat(),
-    );
-    exit(0);
 
     // set up main TUI context
     let mut cursive = Cursive::default();
@@ -79,7 +86,18 @@ fn main() {
                             SizeConstraint::Full,
                             Panel::new(scrollbar)))
         .child(text_box_view));
+ 
+    // start fetching data from server once GUI is initialized
+    let handler = thread::spawn(|| {
+        loop {
+            tokio::run((rpc_get("127.0.0.1".to_string(), 8080))
+                    .map_err(|e| eprintln!("Fetch Error: {}", e))
+                    .boxed()
+                    .compat(),);
+        }
+    });
 
     // Starts the event loop.
     cursive.run();
+    handler.join().unwrap();
 }
