@@ -1,7 +1,7 @@
-use crate::ring::{agreement, aead, digest, hkdf, hmac, rand};
+use crate::ring::{agreement, aead, digest, hkdf, rand};
 use std::sync::Mutex;
 
-pub type PrivateKey = agreement::EphemeralPrivateKey;
+pub type PrivateKey = Vec<u8>; // bytes of sk
 pub type PublicKey = Vec<u8>; // bytes of pk
 pub type DerivedKey = Vec<u8>;
 pub type Message = Vec<u8>;
@@ -32,9 +32,11 @@ macro_rules! rng {
 // TODO: pass errors up!
 
 pub fn keygen() -> (PrivateKey, PublicKey) {
-    let sk = agreement::EphemeralPrivateKey::generate(AGREEMENT, rng!())
+    let keys = agreement::EphemeralPrivateKey::generate(AGREEMENT, rng!())
         .expect("Key agreement failed");
-    let pk = sk.compute_public_key().unwrap().as_ref().to_vec();
+
+    let pk = keys.compute_public_key().unwrap().as_ref().to_vec();
+    let sk = keys.as_ref().to_vec();
 
     (sk, pk)
 }
@@ -56,11 +58,13 @@ pub fn derive(k1 : &PrivateKey, k2: &PublicKey) -> DerivedKey {
         static ref SALT : hkdf::Salt = hkdf::Salt::new(DIGEST, &[]);
     }
 
+    // key bytes to objects
     let upk = agreement::UnparsedPublicKey::new(AGREEMENT, k2);
+    let usk = agreement::EphemeralPrivateKey::new(AGREEMENT, k1).unwrap();
 
     // secret point from key exchange
     let secret = agreement::agree_ephemeral(
-        k1, &upk, ring::error::Unspecified, |s| {
+        &usk, &upk, ring::error::Unspecified, |s| {
             Ok(s.to_vec())
         }
     ).expect("Key agreement failed");
@@ -131,8 +135,9 @@ pub fn backward_onion_decrypt(dks : &Vec<DerivedKey>, mut c : Message) -> Messag
 }
 
 #[cfg(test)]
-mod text {
+mod test {
     use super::*;
+    use crate::serde_json;
 
     #[test]
     fn keygen_randomized() {
@@ -233,5 +238,18 @@ mod text {
         let n = backward_onion_decrypt(&dks, c);
 
         assert_eq!(m, n);
+    }
+
+    #[test]
+    fn test_serialize() {
+        let (sk, pk) = keygen();
+
+        let pk_s = serde_json::to_string(&pk).unwrap();
+        let pk_ds : PublicKey = serde_json::from_str(&pk_s).unwrap();
+        assert_eq!(pk_ds, pk);
+        
+        let sk_s = serde_json::to_string(&sk).unwrap();
+        let sk_ds : PrivateKey = serde_json::from_str(&sk_s).unwrap();
+        assert_eq!(sk_ds, sk);
     }
 }
