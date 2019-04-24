@@ -43,6 +43,10 @@ lazy_static! {
         let (_sk, pk) = keygen();
         pk.len()
     };
+
+    pub static ref TAG_LEN : usize = {
+        AEAD.tag_len()
+    };
 }
 
 macro_rules! rng {

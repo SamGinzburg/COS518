@@ -81,7 +81,7 @@ fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
 fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
     let n = input.len();
 
-    let mut unpacked : Vec<(message::PlaintextMessage, u32)>
+    let mut unpacked : Vec<(Vec<u8>, u32)>
         = Vec::with_capacity(n);
     for w in input {
         let (m, d) = message::unpack(w);
@@ -137,9 +137,9 @@ mod test {
     fn deaddrop_switches() {
         let d_shared = message::Deaddrop::from_bytes(&[1,1,1,1]);
         let d_loner = message::Deaddrop::from_bytes(&[2,2,2,2]);
-        let m1 = [1; message::CONTENT_SIZE];
-        let m2 = [2; message::CONTENT_SIZE];
-        let m3 = [3; message::CONTENT_SIZE];
+        let m1 = vec![1; *message::CONTENT_SIZE];
+        let m2 = vec![2; *message::CONTENT_SIZE];
+        let m3 = vec![3; *message::CONTENT_SIZE];
 
         let input = vec![
             message::pack(&m1, &d_shared),

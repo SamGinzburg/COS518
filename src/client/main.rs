@@ -30,6 +30,7 @@ use tokio::prelude::future::{ok, loop_fn, Future, FutureResult, Loop};
 
 pub mod send;
 pub mod fetch;
+mod lib;
 
 fn send_message(s: &mut Cursive, message: &str) {
     let mut text_area: ViewRef<TextView> = s.find_id("output").unwrap();
