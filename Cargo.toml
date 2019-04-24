@@ -22,7 +22,7 @@ cursive = "0.11"
 rand = "0.6.5"
 tarpc = { version = "0.16.0", features = ["serde1"] }
 tarpc-bincode-transport = "0.5.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0.90", features = ["derive"] }
 tokio = "0.1.18"
 ring = { git = "https://github.com/kuykendall-benjamin/ring" }
 lazy_static = "1.3.0"
