@@ -7,8 +7,28 @@ pub type DerivedKey = Vec<u8>;
 pub type Message = Vec<u8>;
 
 pub enum EncryptionPurpose {
-    Forward = 1,
-    Backward = 2,
+    Forward,
+    Backward,
+    InnerForRound(u32),
+}
+
+fn bytes(v : u32) -> [u8; aead::NONCE_LEN] {
+    let mut b = [0; aead::NONCE_LEN];
+    b[0] = ((v >> 24) & 0xff) as u8;
+    b[1] = ((v >> 16) & 0xff) as u8;
+    b[2] = ((v >> 8) & 0xff) as u8;
+    b[3] = ((v >> 0) & 0xff) as u8;
+    b
+}
+
+impl Into<[u8; aead::NONCE_LEN]> for EncryptionPurpose {
+    fn into(self) -> [u8; aead::NONCE_LEN] {
+        bytes(match self {
+            Forward => 0,
+            Backward => 1,
+            EncryptionPurpose::InnerForRound(v) => v + 10,
+        })
+    }
 }
 
 static AGREEMENT : &agreement::Algorithm = &agreement::X25519;
@@ -81,7 +101,7 @@ pub fn encrypt(k : &DerivedKey, m : Message, p : EncryptionPurpose) -> Message {
     let sealing_key = aead::SealingKey::new(AEAD, k)
         .expect("Cannot encrypt using derived key.");
 
-    let nonce = aead::Nonce::assume_unique_for_key([p as u8; aead::NONCE_LEN]);
+    let nonce = aead::Nonce::assume_unique_for_key(p.into());
 
     let aad = aead::Aad::empty();
 
@@ -99,7 +119,7 @@ pub fn decrypt(k : &DerivedKey, mut c : Message, p : EncryptionPurpose) -> Messa
     let opening_key = aead::OpeningKey::new(AEAD, k)
         .expect("Cannot decrypt using derived key.");
 
-    let nonce = aead::Nonce::assume_unique_for_key([p as u8; aead::NONCE_LEN]);
+    let nonce = aead::Nonce::assume_unique_for_key(p.into());
 
     let aad = aead::Aad::empty();
 
