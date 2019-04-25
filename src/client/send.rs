@@ -11,7 +11,7 @@ pub async fn rpc_put(server_addr: String, port: u16, message: String) -> io::Res
     let mut client = await!(new_stub(client::Config::default(), transport)).unwrap();
     let response = await!(client.put(context::current(), message.to_string())).unwrap();
 
-    //println!("{}", response);
+    println!("{}", response);
 
     Ok(())
 }

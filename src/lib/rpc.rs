@@ -11,6 +11,7 @@ service! {
 #[derive(Clone, Copy, Debug)]
 pub struct HeadServer;
 
+
 impl self::Service for HeadServer {
 
     type GetFut = Ready<String>;
