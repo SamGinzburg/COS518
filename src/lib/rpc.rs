@@ -4,8 +4,13 @@ use tarpc::{context};
 //use serde::{Deserialize, Serialize};
 
 service! {
+    // RPC's for the head server
     rpc put(message: String) -> String;
     rpc get(x: i32, y: i32) -> String;
+    // RPC's for the intermediate server
+    // TODO
+    // RPC's for the deaddrop server
+    // TODO
 }
 
 #[derive(Clone, Copy, Debug)]
