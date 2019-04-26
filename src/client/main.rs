@@ -23,8 +23,7 @@ use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::send::rpc_put;
 use crate::fetch::rpc_get;
-use std::thread;
-
+use std::{thread, time, io};
 use tokio::prelude::future::{ok, loop_fn, Future, FutureResult, Loop};
 
 
@@ -91,9 +90,11 @@ fn main() {
     let handler = thread::spawn(|| {
         loop {
             tokio::run((rpc_get("127.0.0.1".to_string(), 8080))
-                    .map_err(|e| eprintln!("Fetch Error: {}", e))
+                    .map_err(|e| {
+                        eprintln!("Fetch Error: {}", e) })
                     .boxed()
                     .compat(),);
+            thread::sleep(time::Duration::from_millis(1000));
         }
     });
 
