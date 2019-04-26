@@ -3,10 +3,9 @@
 #[macro_use] extern crate lazy_static;
 extern crate rand;
 extern crate ring;
-extern crate serde_json;
 #[macro_use] extern crate tarpc;
 
 pub mod onion;
 pub mod message;
 pub mod rpc;
-
+pub mod keys;
