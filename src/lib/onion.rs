@@ -3,6 +3,8 @@ use std::sync::Mutex;
 
 pub type PrivateKey = Vec<u8>; // bytes of sk
 pub type PublicKey = Vec<u8>; // bytes of pk
+pub type KeyPair = (PrivateKey, PublicKey);
+
 pub type DerivedKey = Vec<u8>;
 pub type Message = Vec<u8>;
 
@@ -137,7 +139,6 @@ pub fn backward_onion_decrypt(dks : &Vec<DerivedKey>, mut c : Message) -> Messag
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::serde_json;
 
     #[test]
     fn keygen_randomized() {
@@ -238,18 +239,5 @@ mod test {
         let n = backward_onion_decrypt(&dks, c);
 
         assert_eq!(m, n);
-    }
-
-    #[test]
-    fn test_serialize() {
-        let (sk, pk) = keygen();
-
-        let pk_s = serde_json::to_string(&pk).unwrap();
-        let pk_ds : PublicKey = serde_json::from_str(&pk_s).unwrap();
-        assert_eq!(pk_ds, pk);
-        
-        let sk_s = serde_json::to_string(&sk).unwrap();
-        let sk_ds : PrivateKey = serde_json::from_str(&sk_s).unwrap();
-        assert_eq!(sk_ds, sk);
     }
 }
