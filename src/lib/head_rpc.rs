@@ -1,11 +1,11 @@
 use tarpc::futures::*;
 use tarpc::futures::future::Ready;
 use tarpc::{context};
-//use serde::{Deserialize, Serialize};
+use std::str;
 
 service! {
     // RPC's for the head server
-    rpc put(message: String) -> String;
+    rpc put(message: Vec<u8>) -> String;
     rpc get(x: i32, y: i32) -> String;
     // RPC's for the intermediate server
     // TODO
@@ -21,8 +21,8 @@ impl self::Service for HeadServer {
     type GetFut = Ready<String>;
     type PutFut = Ready<String>;
 
-    fn put(self, _: context::Context, s: String) -> Self::PutFut {
-        future::ready(format!("PUT, {}!", s))
+    fn put(self, _: context::Context, s: Vec<u8>) -> Self::PutFut {
+        future::ready(format!("PUT, {}!", str::from_utf8(&s).unwrap()))
     }
 
     fn get(self, _: context::Context, x: i32, y: i32) -> Self::GetFut {

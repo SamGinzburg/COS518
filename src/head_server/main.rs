@@ -21,8 +21,8 @@ use tarpc::{
 };
 use tarpc_bincode_transport::listen;
 
-use sharedlib::rpc::HeadServer;
-use sharedlib::rpc::serve;
+use sharedlib::head_rpc::HeadServer;
+use sharedlib::head_rpc::serve;
 
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};

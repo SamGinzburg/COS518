@@ -8,5 +8,5 @@ extern crate serde_json;
 
 pub mod onion;
 pub mod message;
-pub mod rpc;
+pub mod head_rpc;
 

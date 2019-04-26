@@ -2,7 +2,7 @@ use std::{thread, time, io};
 use tarpc::{client, context, server};
 use tarpc_bincode_transport::{connect, listen, Transport};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
-use sharedlib::rpc::new_stub;
+use sharedlib::head_rpc::new_stub;
 use crate::futures::TryFutureExt;
 use crate::futures::FutureExt;
 
