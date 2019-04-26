@@ -9,6 +9,10 @@ name = "sharedlib"
 path = "src/lib/lib.rs"
 
 [[bin]]
+name = "setup"
+path = "src/setup/main.rs"
+
+[[bin]]
 name = "head_server"
 path = "src/head_server/main.rs"
 

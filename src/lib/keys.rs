@@ -11,7 +11,13 @@ pub enum PartyType {
 
 pub struct Party {
     party_type : PartyType,
-    id : u32,
+    id : usize,
+}
+
+impl PartyType {
+    pub fn with_id(self, id : usize) -> Party {
+        Party { party_type: self, id }
+    }
 }
 
 enum KeyType {
@@ -32,10 +38,11 @@ fn parent(t : &PartyType) -> PathBuf {
 fn path(p : &Party, k : KeyType) -> PathBuf {
     let mut path = parent(&p.party_type);
     path.push(p.id.to_string());
-    path.set_extension(match k {
-        Public => "pk",
-        Private => "sk",
-    });
+    let e = match k {
+        KeyType::Public => "pk",
+        KeyType::Private => "sk",
+    };
+    path.set_extension(e);
     path
 }
 
