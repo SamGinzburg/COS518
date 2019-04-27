@@ -4,11 +4,13 @@
 #[macro_use] extern crate lazy_static;
 extern crate rand;
 extern crate ring;
-extern crate serde_json;
 
 pub mod onion;
 pub mod message;
 pub mod head_rpc;
 pub mod int_rpc;
 pub mod deaddrop_rpc;
+pub mod keys;
 
+pub const NUM_CLIENTS : usize = 1000;
+pub const NUM_SERVERS : usize = 3;
