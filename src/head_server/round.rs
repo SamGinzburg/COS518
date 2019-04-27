@@ -12,8 +12,9 @@ pub async fn round_status_check() -> io::Result<()> {
 	{
 		// acquire lock on MESSAGES
 		let arr = MESSAGES.lock().unwrap();
+		// permute the messages *before* proceeding further
 		// begin sending messages to the intermediate server in chunks
-		// increment round number
+		// increment the round number
 		// when we are done drop the lock on MESSAGES by ending the scope
 	}
 
