@@ -3,15 +3,16 @@ use tarpc::futures::future::Ready;
 use tarpc::{context};
 use std::str;
 use std::sync::Mutex;
+use crate::onion;
 
 lazy_static! {
     // a list of messages, protected by a global lock
-    pub static ref MESSAGES: Mutex<Vec<Vec<u8>>> = Mutex::new(vec![]);
+    pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
 }
 
 service! {
     // RPC's for the head server
-    rpc put(message: Vec<u8>) -> String;
+    rpc put(message: onion::Message) -> String;
     rpc get(x: i32, y: i32) -> String;
 }
 
@@ -23,11 +24,14 @@ impl self::Service for HeadServer {
     type GetFut = Ready<String>;
     type PutFut = Ready<String>;
 
-    fn put(self, _: context::Context, s: Vec<u8>) -> Self::PutFut {
+    fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
         // TODO, store types used in crypto utils, not just a Vec<u8>
-        MESSAGES.lock().unwrap().push(s.clone());
-        println!("received message# = {}", MESSAGES.lock().unwrap().len());
-        future::ready(format!("PUT, {}!", str::from_utf8(&s).unwrap()))
+        {
+            let mut m_vec = MESSAGES.lock().unwrap();
+            m_vec.push(s.clone());
+            println!("received message# = {}", m_vec.len());
+        }
+        future::ready(format!("PUT!"))
     }
 
     fn get(self, _: context::Context, x: i32, y: i32) -> Self::GetFut {

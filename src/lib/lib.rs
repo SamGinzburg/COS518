@@ -11,6 +11,9 @@ pub mod head_rpc;
 pub mod int_rpc;
 pub mod deaddrop_rpc;
 pub mod keys;
+pub mod permute;
+pub mod laplace;
+pub mod util;
 
 pub const NUM_CLIENTS : usize = 1000;
 pub const NUM_SERVERS : usize = 3;

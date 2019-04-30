@@ -26,7 +26,7 @@ impl self::Service for DeadDropServer {
     type GetFut = Ready<String>;
     type PutFut = Ready<String>;
 
-    fn put(mut self, _: context::Context, s: Vec<u8>) -> Self::PutFut {
+    fn put(self, _: context::Context, s: Vec<u8>) -> Self::PutFut {
         future::ready(format!("PUT, {}!", str::from_utf8(&s).unwrap()))
     }
 

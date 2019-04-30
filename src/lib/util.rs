@@ -1,26 +1,27 @@
-use sharedlib::{onion, message};
+use crate::onion;
+use crate::message;
 use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
 
-struct Settings<D : Distribution<u32>> {
-    other_pks: Vec<onion::PublicKey>,
-    sk: onion::PrivateKey,
-    noise: D,
+pub struct Settings<D : Distribution<u32>> {
+    pub other_pks: Vec<onion::PublicKey>,
+    pub sk: onion::PrivateKey,
+    pub noise: D,
 }
 
-struct State {
+pub struct State {
     keys: Vec<onion::DerivedKey>,
     permutation: Permutation,
     n: usize,
 }
 
 // straight-forward implementation; could be optimized
-fn forward<D>(input : Vec<onion::Message>, settings : &Settings<D>)-> (State, Vec<onion::Message>)
+pub fn forward<D>(input : Vec<onion::Message>, settings : &Settings<D>)-> (State, Vec<onion::Message>)
 where D : Distribution<u32> {
     let mut rng = rand::thread_rng();
     let n = input.len();
-        
+
     // unwrap, decrypt, and store keys
     let mut keys : Vec<onion::PublicKey> = Vec::with_capacity(n);
     let mut inners : Vec<onion::Message> = Vec::with_capacity(n);
@@ -63,7 +64,7 @@ where D : Distribution<u32> {
     (State{ keys, permutation, n }, output)
 }
 
-fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
+pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
     let unpermuted = state.permutation.apply_inverse(input);
 
