@@ -57,8 +57,17 @@ lazy_static! {
                             .takes_value(true))
                         .get_matches();
 
-        let uid = String::from(matches.value_of("name").unwrap().clone());
-        let remote_uid = String::from(matches.value_of("dial").unwrap().clone());
+        // if these unwraps fail, we must panic!
+        let uid = match matches.value_of("name") {
+            Some(u) => String::from(u).clone(),
+            None    => panic!("name not specified in CLI arguments"),
+        };
+
+
+        let remote_uid = match matches.value_of("dial") {
+            Some(u) => String::from(u).clone(),
+            None    => panic!("name not specified in CLI arguments"),
+        };
 
         m.insert(String::from("uid"), uid);
         m.insert(String::from("remote_uid"), remote_uid);
@@ -77,7 +86,7 @@ fn send_message(s: &mut Cursive, message: &str) {
     let remote_uid = HASHMAP.get(&String::from("remote_uid")).unwrap().parse::<usize>().unwrap();
 
     let mut input: String = "".to_string();
-    
+
     input.push_str(&message.to_string());
     input.push_str("\n");
     text_area.append(input.clone());

@@ -32,7 +32,8 @@ use std::{thread, time, io};
 
 use tarpc::server;
 use std::sync::Mutex;
-use crate::round::round_status_check;
+use crate::round::{round_status_check, start_round, send_m_vec, end_round};
+use sharedlib::head_rpc::MESSAGES;
 
 
 lazy_static! {
@@ -53,7 +54,7 @@ lazy_static! {
                             .takes_value(true))
                         .get_matches();
 
-        let server_uid = String::from(matches.value_of("server_id").unwrap().clone());
+        let server_uid = String::from(matches.value_of("server_id").unwrap_or("0").clone());
 
         m.insert(String::from("server_id"), server_uid);
         m.clone()
@@ -80,25 +81,45 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
 }
 
 fn main() {
-
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
     // TODO: set ip/port combo via cli flags
-    tokio::run(run_service("", 8080)
-               .map_err(|e| eprintln!("RPC Error: {}", e))
-               .boxed()
-               .compat(),
-    );
-
-
+    let rpc_service = thread::spawn(|| {
+        tokio::run(run_service("", 8080)
+                .map_err(|e| eprintln!("RPC Error: {}", e))
+                .boxed()
+                .compat(),
+        );
+    });
+    
     // start fetching data from server once GUI is initialized
     let handler = thread::spawn(|| {
         loop {
-            tokio::run((round_status_check())
+            // wait until round ends
+            thread::sleep(time::Duration::from_millis(1000));
+            // acquire lock on MESSAGES
+            println!("Starting round!!");
+	        let m_vec = MESSAGES.lock().unwrap();
+            println!("m_vec lock acquired!");
+
+            let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
+            // signal int_server to start round
+            let start_new_round = shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8081));
+            // begin sending messages in batches
+            let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
+            // signal end of round
+            let end_round = send_msgs.and_then(|_| end_round("127.0.0.1".to_string(), 8081));
+            // wait int_server signals it is done sending us messages
+            // unshuffle the permutations
+            // increment round count
+            // empty the MESSAGES list for the next round
+            tokio::run((end_round)
                     .map_err(|e| {
                         eprintln!("Fetch Error: {}", e) })
                     .boxed()
                     .compat(),);
-            thread::sleep(time::Duration::from_millis(1000));
         }
     });
+
+    handler.join().unwrap();
+    rpc_service.join().unwrap();
 }

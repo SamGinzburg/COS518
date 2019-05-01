@@ -25,12 +25,9 @@ impl self::Service for HeadServer {
     type PutFut = Ready<String>;
 
     fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
-        // TODO, store types used in crypto utils, not just a Vec<u8>
-        {
-            let mut m_vec = MESSAGES.lock().unwrap();
-            m_vec.push(s.clone());
-            println!("received message# = {}", m_vec.len());
-        }
+        let mut m_vec = MESSAGES.lock().unwrap();
+        m_vec.push(s.clone());
+        println!("received message# = {}", m_vec.len());
         future::ready(format!("PUT!"))
     }
 
