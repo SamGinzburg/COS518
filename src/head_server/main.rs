@@ -1,8 +1,8 @@
 #![feature(futures_api, arbitrary_self_types, await_macro, async_await)]
 
-#[macro_use] extern crate tarpc;
 #[macro_use] extern crate lazy_static;
 
+extern crate tarpc;
 extern crate rand;
 extern crate clap;
 extern crate tarpc_bincode_transport;
@@ -11,7 +11,6 @@ extern crate sharedlib;
 
 mod round;
 
-use crate::tarpc::futures::StreamExt;
 use crate::tarpc::futures::TryFutureExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::compat::Executor01CompatExt;
@@ -31,9 +30,8 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::{thread, time, io};
 
 use tarpc::server;
-use std::sync::{Mutex, Condvar};
-use crate::round::{round_status_check, start_round, send_m_vec, end_round};
-use sharedlib::head_rpc::{MESSAGES, ROUND_NUM, REMOTE_ROUND_ENDED};
+use crate::round::{round_status_check, start_round, send_m_vec, end_round, cleanup};
+use sharedlib::head_rpc::{MESSAGES, PROCESSED_BACKWARDS_MESSAGES};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -93,6 +91,11 @@ fn main() {
     // start fetching data from server once GUI is initialized
     let handler = thread::spawn(|| {
         loop {
+            {
+                // reset the 'messages received' buffer at the start of each round
+                let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
+                *p_backwards_m_vec = vec![];
+            }
             // wait until round ends
             thread::sleep(time::Duration::from_millis(1000));
             // acquire lock on MESSAGES
@@ -106,35 +109,16 @@ fn main() {
             // begin sending messages in batches
             let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
             // signal end of round
-            let end_round = send_msgs.and_then(|_| end_round("127.0.0.1".to_string(), 8081));
-            
-            // after we end the round, we will begin receiving msg's from the int_server
-            println!("waiting for intermediate server to finish!");
+            let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
+            let cleanup = end_round.and_then(|(s, v)| cleanup(s, v));
 
-            // wait int_server signals it is done sending us messages
-            let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
-            let mut flag = b.lock().unwrap();
-            while !*flag {
-                flag = cvar.wait(flag).unwrap();
-            }
-
-            println!("round ended by intermediate server!");
-            // unshuffle the permutations
-
-
-            // empty the MESSAGES list for the next round
+            tokio::run((cleanup)
+                        .map_err(|e| {
+                            eprintln!("Fetch Error: {}", e) })
+                        .boxed()
+                        .compat(),);
+            // empty our message buffer for the next round
             *m_vec = vec![];
-            // increment round count
-            let mut rn = ROUND_NUM.lock().unwrap();
-            *rn += 1;
-            // reset cond var flag for next round
-            *flag = false;
-            println!("Round number incremented, now: {}", *rn);
-            tokio::run((end_round)
-                    .map_err(|e| {
-                        eprintln!("Fetch Error: {}", e) })
-                    .boxed()
-                    .compat(),);
         }
     });
 

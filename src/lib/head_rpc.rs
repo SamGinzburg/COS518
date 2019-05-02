@@ -8,7 +8,11 @@ use crate::onion;
 lazy_static! {
     // a list of messages, protected by a global lock
     pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
+    // buffer for messages received
     pub static ref BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
+    // buffer for messages *after* we process them
+    pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = 
+                            Mutex::new(vec![]);
     pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
                         Arc::new((Mutex::new(false), Condvar::new()));
     pub static ref ROUND_NUM: Mutex<u32> = Mutex::new(0);
