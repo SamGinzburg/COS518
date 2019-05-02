@@ -132,7 +132,6 @@ fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use sharedlib::{onion, message};
 
     #[test]
     fn deaddrop_switches() {

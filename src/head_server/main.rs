@@ -31,10 +31,9 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::{thread, time, io};
 
 use tarpc::server;
-use std::sync::Mutex;
+use std::sync::{Mutex, Condvar};
 use crate::round::{round_status_check, start_round, send_m_vec, end_round};
-use sharedlib::head_rpc::{MESSAGES, ROUND_NUM};
-
+use sharedlib::head_rpc::{MESSAGES, ROUND_NUM, REMOTE_ROUND_ENDED};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -110,10 +109,16 @@ fn main() {
             let end_round = send_msgs.and_then(|_| end_round("127.0.0.1".to_string(), 8081));
             
             // after we end the round, we will begin receiving msg's from the int_server
-            
+            println!("waiting for intermediate server to finish!");
+
             // wait int_server signals it is done sending us messages
-            
-            
+            let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
+            let mut flag = b.lock().unwrap();
+            while !*flag {
+                flag = cvar.wait(flag).unwrap();
+            }
+
+            println!("round ended by intermediate server!");
             // unshuffle the permutations
 
 
@@ -122,6 +127,8 @@ fn main() {
             // increment round count
             let mut rn = ROUND_NUM.lock().unwrap();
             *rn += 1;
+            // reset cond var flag for next round
+            *flag = false;
             println!("Round number incremented, now: {}", *rn);
             tokio::run((end_round)
                     .map_err(|e| {
