@@ -62,7 +62,7 @@ pub fn get(s : Party) -> io::Result<onion::PublicKey> {
     fs::read(path(&s, KeyType::Public))
 }
 
-pub fn get_private(s : Party) -> io::Result<onion::KeyPair> {
+pub fn get_keypair(s : Party) -> io::Result<onion::KeyPair> {
     let pk = fs::read(path(&s, KeyType::Public))?;
     let sk = fs::read(path(&s, KeyType::Private))?;
     Ok((sk, pk))

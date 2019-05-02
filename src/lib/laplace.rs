@@ -45,7 +45,7 @@ pub struct TransformedDistribution<S,T,D,F> {
 
 impl <S,T,D,F> TransformedDistribution<S,T,D,F> where
     D : Distribution<S>, F : Fn(S) -> T {
-    fn new(parent : D, transform: F) -> TransformedDistribution<S,T,D,F> {
+    pub fn new(parent : D, transform: F) -> TransformedDistribution<S,T,D,F> {
         TransformedDistribution{ parent, transform, _s : PhantomData, _t : PhantomData }
     }
 }
