@@ -17,22 +17,16 @@ use cursive::Cursive;
 use cursive::view::*;
 use cursive::views::*;
 
-use std::process::exit;
-
-use crate::tarpc::futures::StreamExt;
 use crate::tarpc::futures::TryFutureExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::send::rpc_put;
 use crate::fetch::rpc_get;
-use std::{thread, time, io};
-use tokio::prelude::future::{ok, loop_fn, Future, FutureResult, Loop};
-use sharedlib::keys::{Party, PartyType, get_keypair};
-use std::sync::Mutex;
-use std::string::String;
+use std::{thread, time};
 
 pub mod send;
 pub mod fetch;
+pub mod util;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 

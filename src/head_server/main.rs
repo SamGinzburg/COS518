@@ -33,7 +33,7 @@ use std::{thread, time, io};
 use tarpc::server;
 use std::sync::Mutex;
 use crate::round::{round_status_check, start_round, send_m_vec, end_round};
-use sharedlib::head_rpc::MESSAGES;
+use sharedlib::head_rpc::{MESSAGES, ROUND_NUM};
 
 
 lazy_static! {
@@ -98,7 +98,7 @@ fn main() {
             thread::sleep(time::Duration::from_millis(1000));
             // acquire lock on MESSAGES
             println!("Starting round!!");
-	        let m_vec = MESSAGES.lock().unwrap();
+	        let mut m_vec = MESSAGES.lock().unwrap();
             println!("m_vec lock acquired!");
 
             let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
@@ -108,10 +108,21 @@ fn main() {
             let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
             // signal end of round
             let end_round = send_msgs.and_then(|_| end_round("127.0.0.1".to_string(), 8081));
+            
+            // after we end the round, we will begin receiving msg's from the int_server
+            
             // wait int_server signals it is done sending us messages
+            
+            
             // unshuffle the permutations
-            // increment round count
+
+
             // empty the MESSAGES list for the next round
+            *m_vec = vec![];
+            // increment round count
+            let mut rn = ROUND_NUM.lock().unwrap();
+            *rn += 1;
+            println!("Round number incremented, now: {}", *rn);
             tokio::run((end_round)
                     .map_err(|e| {
                         eprintln!("Fetch Error: {}", e) })
