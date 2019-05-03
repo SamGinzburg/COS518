@@ -31,7 +31,7 @@ use std::{thread, time, io};
 
 use tarpc::server;
 use crate::round::{round_status_check, start_round, send_m_vec, end_round, cleanup};
-use sharedlib::head_rpc::{MESSAGES, PROCESSED_BACKWARDS_MESSAGES};
+use sharedlib::head_rpc::{MESSAGES, BACKWARDS_MESSAGES, PROCESSED_BACKWARDS_MESSAGES};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -92,6 +92,9 @@ fn main() {
     let handler = thread::spawn(|| {
         loop {
             {
+                let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
+                *p_backwards_msgs_m_vec = vec![];
+
                 // reset the 'messages received' buffer at the start of each round
                 let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
                 *p_backwards_m_vec = vec![];
