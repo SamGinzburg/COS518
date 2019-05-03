@@ -10,6 +10,7 @@ pub struct Settings<D : Distribution<u32>> {
     pub noise: D,
 }
 
+#[derive(Debug)]
 pub struct State {
     keys: Vec<onion::DerivedKey>,
     permutation: Permutation,
@@ -79,7 +80,7 @@ pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Messag
     ciphers
 }
 
-fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
+pub fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
     let n = input.len();
 
     let mut unpacked : Vec<(message::PlaintextMessage, u32)>

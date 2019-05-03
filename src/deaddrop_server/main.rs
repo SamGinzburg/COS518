@@ -57,7 +57,7 @@ fn main() {
 
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
     // TODO: set ip/port combo via cli flags
-    tokio::run(run_service("", 8080)
+    tokio::run(run_service("", 8082)
                .map_err(|e| eprintln!("RPC Error: {}", e))
                .boxed()
                .compat(),
