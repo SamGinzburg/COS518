@@ -40,6 +40,8 @@ pub async fn end_round(server_addr: String, port: u16)
 	let transport = await!(connect(&s_addr)).unwrap();
 	let mut client = await!(prev_server_stub(client::Config::default(), transport)).unwrap();
     await!(client.EndRoundForward(context::current())).unwrap();
+    let mut m_vec = MESSAGES.lock().unwrap();
+    *m_vec = vec![];
 	Ok(())
 }
 
@@ -79,8 +81,9 @@ impl self::Service for DeadDropServer {
 
         let rpc_service = thread::spawn(move || {
             let m_vec = MESSAGES.lock().unwrap();
-
-            let dd = dead_drop_fn(m_vec.to_vec());
+            let m_vec_copy = m_vec.to_vec();
+            drop(m_vec);
+            let dd = dead_drop_fn(m_vec_copy);
             let send = dd.and_then(|v| send_m_vec(v, "127.0.0.1".to_string(), 8081));
             let end = send.and_then(|_| end_round("127.0.0.1".to_string(), 8081));
             tokio::run((end)

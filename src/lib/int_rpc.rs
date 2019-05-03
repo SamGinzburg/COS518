@@ -200,6 +200,17 @@ pub async fn backwards_send_msg(m_vec: Vec<onion::Message>, server_addr: String,
     Ok(())
 }
 
+pub async fn backwards_end_round(server_addr: String, port: u16)
+-> io::Result<()> {
+	println!("ending round on previous server");
+
+	let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
+	let transport = await!(connect(&s_addr)).unwrap();
+	let mut client = await!(prev_server_new_stub(client::Config::default(), transport)).unwrap();
+	await!(client.EndRound(context::current())).unwrap();
+
+    Ok(())
+}
 
 impl self::Service for IntermediateServer {
     type EndRoundFut = Ready<bool>;
@@ -236,8 +247,9 @@ impl self::Service for IntermediateServer {
             let wait = cleanup.and_then(|_| wait_for_reply());
             // only after the next server is done, can we start sending msgs back
             let respond = wait.and_then(|v| backwards_send_msg(v, "127.0.0.1".to_string(), 8080));
-
-            tokio::run((respond)
+            let end_previous = respond.and_then(|_| backwards_end_round("127.0.0.1".to_string(), 8080));
+            
+            tokio::run((end_previous)
                     .map_err(|e| eprintln!("RPC Error: {}", e))
                     .boxed()
                     .compat(),
