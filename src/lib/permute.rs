@@ -9,7 +9,7 @@ pub struct Permutation {
 
 impl Permutation {
     pub fn sample(m : usize) -> Permutation {
-        let mut map : Vec<usize> = (1..m).collect();
+        let mut map : Vec<usize> = (0..(m-1)).collect();
         map.shuffle(&mut rand::thread_rng());
         Permutation { map }
     }
