@@ -78,6 +78,7 @@ pub async fn send_m_vec(s: State, m_vec: Vec<onion::Message>, server_addr: Strin
 	let m_vec_clone = m_vec.clone();
 	for count in 0..chunk_count {
 		let msgs = m_vec_clone.get(count..count+1).unwrap().to_vec();
+		println!("sending msgs");
 		await!(client.SendMessages(context::current(), msgs, true)).unwrap();
 	}
 

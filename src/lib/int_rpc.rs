@@ -147,33 +147,42 @@ pub async fn cleanup(s: State, m_vec: Vec<onion::Message>, server_addr: String, 
 	// after we end the round, we will begin receiving msg's from the int_server
 	println!("waiting for next server to finish!");
 
-	// wait int_server signals it is done sending us messages
-	let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
-	let mut flag = b.lock().unwrap();
-	while !*flag {
-		flag = cvar.wait(flag).unwrap();
-	}
-	// reset cond var flag for next round
-	*flag = false;
-
-	println!("round ended by the next server!");
-
 	// unshuffle the permutations
 	Ok(backward(s, m_vec))
+}
+
+// send messages to previous server finally & finish cleanup
+pub async fn wait_for_reply()
+-> io::Result<(Vec<onion::Message>)> {
+    // wait int_server signals it is done sending us messages
+    println!("waiting on the next server to finish sending msgs");
+    let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
+    let mut flag = b.lock().unwrap();
+    while !*flag {
+        flag = cvar.wait(flag).unwrap();
+    }
+    // reset cond var flag for next round
+    *flag = false;
+    println!("round ended by the next server!");
+    
+    Ok(BACKWARDS_MESSAGES.lock().unwrap().to_vec())
 }
 
 // send messages to previous server finally & finish cleanup
 pub async fn backwards_send_msg(m_vec: Vec<onion::Message>, server_addr: String, port: u16)
 -> io::Result<()> {
     println!("backwards_send_msg");
+
 	let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
 	let transport = await!(connect(&s_addr)).unwrap();
 	let mut client = await!(prev_server_new_stub(client::Config::default(), transport)).unwrap();
 
     // send all the messages
 	let chunk_count = m_vec.len();
+    println!("{}", chunk_count);
 	let m_vec_clone = m_vec.clone();
 	for count in 0..chunk_count {
+        println!("sending message backwards!");
 		let msgs = m_vec_clone.get(count..count+1).unwrap().to_vec();
 		await!(client.SendMessages(context::current(), msgs)).unwrap();
 	}
@@ -182,6 +191,11 @@ pub async fn backwards_send_msg(m_vec: Vec<onion::Message>, server_addr: String,
 	let mut rn = ROUND_NUM.lock().unwrap();
 	*rn += 1;
 	println!("Round number incremented, now: {}", *rn);
+    // empty MESSAGES
+    let mut msgs = MESSAGES.lock().unwrap();
+    *msgs = vec![];
+    let mut back_msgs = BACKWARDS_MESSAGES.lock().unwrap();
+    *back_msgs = vec![];
 
     Ok(())
 }
@@ -219,8 +233,9 @@ impl self::Service for IntermediateServer {
             // signal end of round
             let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8082));
             let cleanup = end_round.and_then(|(s, v)| cleanup(s, v, "127.0.0.1".to_string(), 8080));
-            let backwards_m_vec_copy = BACKWARDS_MESSAGES.lock().unwrap().to_vec();
-            let respond = cleanup.and_then(|_| backwards_send_msg(backwards_m_vec_copy, "127.0.0.1".to_string(), 8080));
+            let wait = cleanup.and_then(|_| wait_for_reply());
+            // only after the next server is done, can we start sending msgs back
+            let respond = wait.and_then(|v| backwards_send_msg(v, "127.0.0.1".to_string(), 8080));
 
             tokio::run((respond)
                     .map_err(|e| eprintln!("RPC Error: {}", e))

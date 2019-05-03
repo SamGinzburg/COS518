@@ -9,6 +9,9 @@ pub struct Permutation {
 
 impl Permutation {
     pub fn sample(m : usize) -> Permutation {
+        if m == 0 {
+            return Permutation { map: vec![] }
+        }
         let mut map : Vec<usize> = (0..(m-1)).collect();
         map.shuffle(&mut rand::thread_rng());
         Permutation { map }
