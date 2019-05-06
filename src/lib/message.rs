@@ -2,8 +2,12 @@ use crate::rand::Rng;
 use crate::onion;
 use std::hash::{Hash, Hasher};
 
-// may need longer; should store encrypted message
-pub const CONTENT_SIZE : usize = 16;
+pub const RAW_SIZE : usize = 256;
+
+lazy_static! {
+    pub static ref CONTENT_SIZE : usize =
+        RAW_SIZE + *onion::TAG_LEN;
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Deaddrop {
@@ -50,23 +54,21 @@ impl Hash for Deaddrop {
     }
 }
 
-pub type PlaintextMessage = [u8; CONTENT_SIZE];
-
 pub fn blank(d : &Deaddrop) -> onion::Message {
-    pack(&[0; CONTENT_SIZE], d)
+    pack(&vec![0; *CONTENT_SIZE], d)
 }
 
-pub fn pack(m : &PlaintextMessage, d : &Deaddrop) -> onion::Message {
-    let mut p = Vec::with_capacity(4 + CONTENT_SIZE);
+pub fn pack(m : &Vec<u8>, d : &Deaddrop) -> onion::Message {
+    let mut p = Vec::with_capacity(4 + *CONTENT_SIZE);
     p.extend(m);
     p.extend(&d.bytes());
     p
 }
 
-pub fn unpack(w : onion::Message) -> (PlaintextMessage, Deaddrop) {
-    let mut m : [u8; CONTENT_SIZE] = Default::default();
-    m.copy_from_slice(&w[..CONTENT_SIZE]);
-    let d = Deaddrop::from_bytes(&w[CONTENT_SIZE..]);
+pub fn unpack(w : onion::Message) -> (Vec<u8>, Deaddrop) {
+    let m = w.to_vec();
+    // we want the last 4 bytes
+    let d = Deaddrop::from_bytes(&w[..4]);
     (m, d)
 }
 
@@ -103,7 +105,7 @@ mod test {
 
     #[test]
     fn pack_invertible() {
-        let m = [123; 16];
+        let m = vec![123; *CONTENT_SIZE];
         let d = Deaddrop::sample();
         let p = pack(&m, &d);
         let (mm, dd) = unpack(p.clone());

@@ -48,7 +48,7 @@ pub async fn end_round(server_addr: String, port: u16)
 pub async fn dead_drop_fn(m_vec: Vec<onion::Message>)
 -> io::Result<(Vec<onion::Message>)> {
 	println!("swapping deaddrops...");
-	Ok((deaddrop(m_vec)))
+	Ok(deaddrop(m_vec))
 }
 
 service! {
