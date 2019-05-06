@@ -14,7 +14,7 @@ pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize
     let mut client = await!(new_stub(client::Config::default(), transport)).unwrap();
     // put this here just to get stuff to work, can fix later
     // get client keypair
-    let (priv_key, pub_key) = get_keypair(PartyType::Client.with_id(uid)).unwrap();
+    let (priv_key, _) = get_keypair(PartyType::Client.with_id(uid)).unwrap();
 
     // get other client public key
     let remote_pub_key = get(PartyType::Client.with_id(remote_uid)).unwrap();

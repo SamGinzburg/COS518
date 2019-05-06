@@ -15,8 +15,8 @@ lazy_static! {
     pub static ref BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
     // buffer for messages *after* we process them
     // TODO: clients need to lookup by deaddrop, prob need a HashMap of some kind
-    pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<HashMap<Deaddrop, onion::Message>> = 
-                            Mutex::new(HashMap::new());
+    pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = 
+                            Mutex::new(vec![]);
     pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
                         Arc::new((Mutex::new(false), Condvar::new()));
     // used to block until the round ends
@@ -47,8 +47,10 @@ impl self::Service for HeadServer {
     type EndRoundFut = Ready<bool>;
 
     fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
+        let mut msg_count = 0;
         {
             let mut m_vec = MESSAGES.lock().unwrap();
+            msg_count = m_vec.len();
             m_vec.push(s.clone());
         }
         // block until the current round ends, send back round reply
@@ -61,13 +63,9 @@ impl self::Service for HeadServer {
         // get the message from the current round
         let (_, dd) = unpack(s.clone());
         // if no reply return a dummy message
-        let msg_hash_table = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-        let msg = msg_hash_table.get(&dd);
-        let reply = match msg {
-            Some(m) => m.to_vec(),
-            None => blank(&dd.clone())
-        };
-        future::ready(reply)
+        let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
+        
+        future::ready(msg_vec[msg_count].clone())
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {

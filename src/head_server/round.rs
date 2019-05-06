@@ -12,7 +12,6 @@ use sharedlib::keys::get_keypair;
 use sharedlib::int_rpc::new_stub;
 use sharedlib::head_rpc::{ROUND_NUM, LOCAL_ROUND_ENDED, REMOTE_ROUND_ENDED,
 						  PROCESSED_BACKWARDS_MESSAGES};
-use sharedlib::message::unpack;
 
 /*
  * This function is used to periodically end a round,
@@ -115,10 +114,7 @@ pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
 	// unshuffle the permutations
 	let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
 	let returning_m_vec = backward(s, m_vec);
-	for msg in returning_m_vec {
-		let (_, dd) = unpack(msg.clone());
-		p_backwards_m_vec.insert(dd, msg);
-	}
+	p_backwards_m_vec.extend(returning_m_vec);
 
 	// increment round count
 	let mut rn = ROUND_NUM.lock().unwrap();

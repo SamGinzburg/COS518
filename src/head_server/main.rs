@@ -98,7 +98,7 @@ fn main() {
 
                 // reset the 'messages received' buffer at the start of each round
                 let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-                *p_backwards_m_vec = HashMap::new();
+                *p_backwards_m_vec = vec![];
             }
             // wait until round ends
             thread::sleep(time::Duration::from_millis(1000));
