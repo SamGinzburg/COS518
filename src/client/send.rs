@@ -5,7 +5,7 @@ use std::io;
 use sharedlib::head_rpc::new_stub;
 use sharedlib::keys::{PartyType, get, get_keypair};
 use sharedlib::onion::derive;
-use crate::util::wrap;
+use sharedlib::client_util::wrap;
 
 pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize, remote_uid: usize) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);

@@ -1,6 +1,7 @@
 use crate::rand::prelude::SliceRandom;
 
 use std::cmp::Ordering;
+use std::iter;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Permutation {
@@ -10,10 +11,19 @@ pub struct Permutation {
 impl Permutation {
     pub fn sample(m : usize) -> Permutation {
         if m == 0 {
+            // todo: do we need this?
             return Permutation { map: vec![] }
         }
-        let mut map : Vec<usize> = (0..(m-1)).collect();
+        let mut map : Vec<usize> = (0..m).collect();
         map.shuffle(&mut rand::thread_rng());
+        Permutation { map }
+    }
+
+    pub fn inverse(&self) -> Permutation {
+        let mut map : Vec<usize> = iter::repeat(0).take(self.map.len()).collect();
+        for (i,j) in self.map.iter().enumerate() {
+            map[*j] = i;
+        }
         Permutation { map }
     }
 
@@ -52,21 +62,6 @@ impl Permutation {
         output
     }
 
-    pub fn apply_inverse<T>(&self, input : Vec<T>) -> Vec<T> {
-        let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
-        for x in input {
-            tmp.push(Some(x));
-        }
-
-        let mut output : Vec<T> = Vec::with_capacity(tmp.len());
-        for i in 0..tmp.len() {
-            tmp.push(None);
-            output.push(tmp.swap_remove(*self.map.get(i).unwrap()).unwrap());
-        }
-
-        output
-    }
-
     #[cfg(test)]
     fn from_vec(map : Vec<usize>) -> Permutation {
         Permutation { map }
@@ -88,9 +83,9 @@ mod test {
 
     #[test]
     fn invert_correct() {
-        let pi = Permutation::from_vec(vec![1, 0, 2]);
+        let pi = Permutation::from_vec(vec![2, 0, 1]);
         let v = vec!['a', 'b', 'c'];
-        let w = pi.apply_inverse(pi.apply(v));
+        let w = pi.inverse().apply(pi.apply(v));
 
         assert_eq!(w, vec!['a', 'b', 'c']);
     }
@@ -109,6 +104,6 @@ mod test {
         let mut v_clone = v.clone();
         let pi = Permutation::from_sort(&mut v_clone, Ord::cmp);
 
-        assert_eq!(pi.apply(v), v_clone);
+        assert_eq!(pi.apply(v.clone()), v_clone);
     }
 }

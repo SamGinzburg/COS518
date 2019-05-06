@@ -153,10 +153,10 @@ pub fn forward_onion_encrypt(pks : &Vec<PublicKey>, mut m : Message) -> (Vec<Der
 
 pub fn backward_onion_decrypt(dks : &Vec<DerivedKey>, mut c : Message) -> Message {
     for dk in dks.iter() {
-        println!("{:?}", c);
+        //println!("{:?}", c);
         c = decrypt(&dk, c, EncryptionPurpose::Backward);
     }
-    println!("{:?}", c);
+    //println!("{:?}", c);
     c
 }
 

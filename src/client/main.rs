@@ -26,7 +26,6 @@ use std::{thread, time};
 
 pub mod send;
 pub mod fetch;
-pub mod util;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
