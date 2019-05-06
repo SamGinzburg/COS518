@@ -31,7 +31,8 @@ use std::{thread, time, io};
 
 use tarpc::server;
 use crate::round::{round_status_check, start_round, send_m_vec, end_round, cleanup};
-use sharedlib::head_rpc::{MESSAGES, BACKWARDS_MESSAGES, PROCESSED_BACKWARDS_MESSAGES};
+use sharedlib::head_rpc::{LOCAL_ROUND_ENDED, MESSAGES, BACKWARDS_MESSAGES,
+                          PROCESSED_BACKWARDS_MESSAGES};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -97,7 +98,7 @@ fn main() {
 
                 // reset the 'messages received' buffer at the start of each round
                 let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-                *p_backwards_m_vec = vec![];
+                *p_backwards_m_vec = HashMap::new();
             }
             // wait until round ends
             thread::sleep(time::Duration::from_millis(1000));
@@ -120,8 +121,14 @@ fn main() {
                             eprintln!("Fetch Error: {}", e) })
                         .boxed()
                         .compat(),);
+
             // empty our message buffer for the next round
             *m_vec = vec![];
+            // cleanup end round cvar
+            let tuple = LOCAL_ROUND_ENDED.clone();
+            let &(ref b, _) = &*tuple;
+            let mut flag = b.lock().unwrap();
+            *flag = false;
         }
     });
 

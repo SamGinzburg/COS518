@@ -60,7 +60,7 @@ lazy_static! {
 
         let remote_uid = match matches.value_of("dial") {
             Some(u) => String::from(u).clone(),
-            None    => panic!("name not specified in CLI arguments"),
+            None    => panic!("dial not specified in CLI arguments"),
         };
 
         m.insert(String::from("uid"), uid);
@@ -87,10 +87,11 @@ fn send_message(s: &mut Cursive, message: &str) {
 
     // TODO: set ip/port combo via cli flags
     tokio::run(rpc_put("127.0.0.1".to_string(), 8080, input.clone(), uid, remote_uid)
-               .map_err(|e| eprintln!("RPC Error: {}", e))
-               .boxed()
-               .compat(),
+            .map_err(|e| eprintln!("RPC Error: {}", e))
+            .boxed()
+            .compat(),
     );
+
 }
 
 fn main() {

@@ -1,11 +1,12 @@
 use tarpc::{client, context};
 use tarpc_bincode_transport::{connect};
 use std::net::{IpAddr, SocketAddr};
-use std::io;
+use std::{io};
+use std::string::String;
 use sharedlib::head_rpc::new_stub;
 use sharedlib::keys::{PartyType, get, get_keypair};
 use sharedlib::onion::derive;
-use crate::util::wrap;
+use crate::util::{wrap, unwrap};
 
 pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize, remote_uid: usize) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
@@ -30,9 +31,14 @@ pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize
 
     let (d_keys, enc_msg) = wrap(rn, message.as_bytes().to_vec(), &dk, &server_pub_keys);
     // store the d_keys for when we receive a message at the end of the round
-
-
     // send it
-    await!(client.put(context::current(), enc_msg.clone())).unwrap();
+    let return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
+
+    let unwrapped_msg = unwrap(rn, return_msg, &dk, d_keys);
+    let mut output = String::from_utf8(unwrapped_msg).unwrap();
+    output.push_str("\n");
+    println!("{}", output);
+    //t_box.append(output.clone());
+
     Ok(())
 }

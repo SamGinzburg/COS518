@@ -1,5 +1,6 @@
 use crate::rand::Rng;
 use crate::onion;
+use std::hash::{Hash, Hasher};
 
 // may need longer; should store encrypted message
 pub const CONTENT_SIZE : usize = 16;
@@ -40,6 +41,12 @@ impl Deaddrop {
 
     pub fn location(&self) -> u32 {
         self.location
+    }
+}
+
+impl Hash for Deaddrop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.location.hash(state);
     }
 }
 
