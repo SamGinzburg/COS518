@@ -6,7 +6,7 @@ use std::string::String;
 use sharedlib::head_rpc::new_stub;
 use sharedlib::keys::{PartyType, get, get_keypair};
 use sharedlib::onion::derive;
-use crate::util::{wrap, unwrap};
+use sharedlib::client_util::{wrap, unwrap};
 
 pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize, remote_uid: usize) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
@@ -27,12 +27,14 @@ pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize
     let mut server_pub_keys = vec![];
     server_pub_keys.push(get(PartyType::Server.with_id(0)).unwrap());
     server_pub_keys.push(get(PartyType::Server.with_id(1)).unwrap());
-    server_pub_keys.push(get(PartyType::Server.with_id(2)).unwrap());
+    //server_pub_keys.push(get(PartyType::Server.with_id(2)).unwrap());
 
     let (d_keys, enc_msg) = wrap(rn, message.as_bytes().to_vec(), &dk, &server_pub_keys);
     // store the d_keys for when we receive a message at the end of the round
     // send it
     let return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
+
+    println!("return msg: {:?}", return_msg);
 
     let unwrapped_msg = unwrap(rn, return_msg, &dk, d_keys);
     let mut output = String::from_utf8(unwrapped_msg).unwrap();

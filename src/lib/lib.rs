@@ -14,6 +14,7 @@ pub mod keys;
 pub mod permute;
 pub mod laplace;
 pub mod util;
+pub mod client_util;
 
 pub const NUM_CLIENTS : usize = 1000;
 pub const NUM_SERVERS : usize = 3;

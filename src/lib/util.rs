@@ -61,13 +61,15 @@ where D : Distribution<u32> {
     // permute
     let permutation = Permutation::sample(m);
     let output : Vec<onion::Message> = permutation.apply(inners);
+    //let output = inners; // no permute
 
     (State{ keys, permutation, n }, output)
 }
 
 pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
-    let unpermuted = state.permutation.apply_inverse(input);
+    let unpermuted = state.permutation.inverse().apply(input);
+    //let unpermuted = input; // no permute
 
     // re-encrypt
     let mut ciphers : Vec<onion::Message> = Vec::with_capacity(state.n);
@@ -91,7 +93,7 @@ pub fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
     }
 
 
-    let mut order = Permutation::from_sort(
+    let order = Permutation::from_sort(
         &mut unpacked, |(_m1, d1), (_m2, d2)| d1.partial_cmp(d2).unwrap());
 
     let mut res_messages : Vec<onion::Message> = Vec::with_capacity(n);
@@ -126,8 +128,9 @@ pub fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
             },
         }
     }
-    
-    order.apply_inverse(res_messages)
+
+    let output = order.inverse().apply(res_messages);
+    output
 }
 
 #[cfg(test)]
@@ -136,18 +139,18 @@ mod test {
 
     #[test]
     fn deaddrop_switches() {
-        let d_shared = message::Deaddrop::from_bytes(&[1,1,1,1]);
-        let d_loner = message::Deaddrop::from_bytes(&[2,2,2,2]);
+        let d_loner = message::Deaddrop::from_bytes(&[1,1,1,1]);
+        let d_shared = message::Deaddrop::from_bytes(&[2,2,2,2]);
         let m1 = vec![1; *message::CONTENT_SIZE];
         let m2 = vec![2; *message::CONTENT_SIZE];
         let m3 = vec![3; *message::CONTENT_SIZE];
 
         let input = vec![
             message::pack(&m1, &d_shared),
-            message::pack(&m2, &d_loner),
-            message::pack(&m3, &d_shared),
+            message::pack(&m2, &d_shared),
+            message::pack(&m3, &d_loner),
         ];
 
-        assert_eq!(deaddrop(input), vec![m3, m2, m1]);
+        assert_eq!(deaddrop(input), vec![m2, m1, m3]);
     }
 }

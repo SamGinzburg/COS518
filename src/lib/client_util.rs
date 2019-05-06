@@ -1,4 +1,4 @@
-use crate::sharedlib::{message, onion};
+use crate::{message, onion};
 
 /// For Alice to wrap a message to send to Bob over servers s1...sn.
 /// Put:
@@ -12,8 +12,11 @@ pub fn wrap(
     dk : &onion::DerivedKey,
     server_pks : &Vec<onion::PublicKey>,
 ) -> (Vec<onion::DerivedKey>, onion::Message) {
+    // resize
+    m.resize(message::RAW_SIZE, 0);
 
     // encrypt for Bob
+    // TODO: Bob and Alice must encrypt with different salts
     let e = onion::encrypt(&dk, m, onion::EncryptionPurpose::InnerForRound(round));
 
     // pack with deaddrop
