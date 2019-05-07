@@ -30,9 +30,10 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::{thread, time, io};
 
 use tarpc::server;
-use crate::round::{round_status_check, start_round, send_m_vec, end_round, cleanup};
+use crate::round::{round_status_check, start_round, send_m_vec, end_round, waiting_for_next, cleanup};
 use sharedlib::head_rpc::{LOCAL_ROUND_ENDED, MESSAGES, BACKWARDS_MESSAGES,
                           PROCESSED_BACKWARDS_MESSAGES};
+use tokio_threadpool::{ThreadPool, blocking};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -81,16 +82,16 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
 fn main() {
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
     // TODO: set ip/port combo via cli flags
-    let rpc_service = thread::spawn(|| {
-        tokio::run(run_service("", 8080)
-                .map_err(|e| eprintln!("RPC Error: {}", e))
-                .boxed()
-                .compat(),
-        );
-    });
+    let pool = ThreadPool::new();
+
+    pool.spawn(run_service("", 8080)
+            .map_err(|e| eprintln!("RPC Error: {}", e))
+            .boxed()
+            .compat(),
+    );
     
     // start fetching data from server once GUI is initialized
-    let handler = thread::spawn(|| {
+    let handler = thread::spawn(move || {
         loop {
             {
                 let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
@@ -114,7 +115,8 @@ fn main() {
             let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
             // signal end of round
             let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
-            let cleanup = end_round.and_then(|(s, _)| cleanup(s));
+            let wait = end_round.and_then(|(s, _)| waiting_for_next(s));
+            let cleanup = wait.and_then(|s| cleanup(s));
 
             tokio::run((cleanup)
                         .map_err(|e| {
@@ -133,5 +135,4 @@ fn main() {
     });
 
     handler.join().unwrap();
-    rpc_service.join().unwrap();
 }
