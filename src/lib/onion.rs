@@ -11,7 +11,7 @@ pub type Message = Vec<u8>;
 pub enum EncryptionPurpose {
     Forward,
     Backward,
-    InnerForRound(u32),
+    FromBytes(u32),
 }
 
 fn bytes(v : u32) -> [u8; aead::NONCE_LEN] {
@@ -28,7 +28,7 @@ impl Into<[u8; aead::NONCE_LEN]> for EncryptionPurpose {
         bytes(match self {
             Forward => 0,
             Backward => 1,
-            EncryptionPurpose::InnerForRound(v) => v + 10,
+            EncryptionPurpose::FromBytes(b) => b,
         })
     }
 }

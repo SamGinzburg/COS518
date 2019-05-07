@@ -26,10 +26,11 @@ fn crypto_integration_test() {
 
     // wrap
     let r = 3;
-    let (server_dksa, wa) = client_util::wrap(r, ma, &dka, &server_pks);
-    let (server_dksb, wb) = client_util::wrap(r, mb, &dkb, &server_pks);
-    let (server_dksc, wc) = client_util::wrap(r, mc, &dkc, &server_pks);
+    let (server_dksa, wa) = client_util::wrap(r, ma, &pkb, &dka, &server_pks);
+    let (server_dksb, wb) = client_util::wrap(r, mb, &pka, &dkb, &server_pks);
+    let (server_dksc, wc) = client_util::wrap(r, mc, &pkc, &dkc, &server_pks);
     let in0 = vec![wa, wb, wc];
+    println!("Message: {:?}, len: {}", in0[2], in0[2].len());
 
     // noise
     let laplace = laplace::Laplace::new(1.0, 10.0);
@@ -53,33 +54,42 @@ fn crypto_integration_test() {
     };
 
     // forward
-    println!("in0 len: {}", in0.len());
+    //    println!("in0 len: {}", in0.len());
+    println!("in0[0] len: {}", in0[0].len());
     let (s0, in1) = util::forward(in0, &s0);
-    println!("in1 len: {}", in1.len());
+    //println!("in1 len: {}", in1.len());
+    println!("in1[0] len: {}", in1[0].len());
     let (s1, in2) = util::forward(in1, &s1);
-    println!("in2 len: {}", in2.len());
+    //println!("in2 len: {}", in2.len());
+    println!("in2[0] len: {}", in2[0].len());
     let (s2, in3) = util::forward(in2, &s2);
-    println!("in3 len: {}", in3.len());
+    //println!("in3 len: {}", in3.len());
+    println!("in3[0] len: {}", in3[0].len());
 
     // deaddrop
     let out3 = util::deaddrop(in3);
-    println!("out3 len: {}", out3.len());
+    //println!("out3 len: {}", out3.len());
+    println!("out3[0] len: {}", out3[0].len());
 
     // backward
     let out2 = util::backward(s2, out3);
-    println!("out2 len: {}", out2.len());
+    //println!("out2 len: {}", out2.len());
+    println!("out2[0] len: {}", out2[0].len());
     let out1 = util::backward(s1, out2);
-    println!("out1 len: {}", out1.len());
+    //println!("out1 len: {}", out1.len());
+    println!("out1[0] len: {}", out1[0].len());
     let out0 = util::backward(s0, out1);
-    println!("out0 len: {}", out0.len());
+    //println!("out0 len: {}", out0.len());
+    println!("out0[0] len: {}", out0[0].len());
 
     // unwrap and compare
-    println!("try unwrap Alice...");
-    let oa = client_util::unwrap(r, out0[0].clone(), &dka, server_dksa);
-    println!("try unwrap Bob...");
-    let ob = client_util::unwrap(r, out0[1].clone(), &dkb, server_dksb);
-    println!("try unwrap Charlie...");
-    let oc = client_util::unwrap(r, out0[2].clone(), &dkc, server_dksc);
+    //println!("try unwrap Alice...");
+    let oa = client_util::unwrap(r, out0[0].clone(), &pka, &dka, server_dksa);
+    //println!("try unwrap Bob...");
+    let ob = client_util::unwrap(r, out0[1].clone(), &pkb, &dkb, server_dksb);
+    //println!("try unwrap Charlie...");
+    let oc = client_util::unwrap(r, out0[2].clone(), &pkc, &dkc, server_dksc);
+    //println!("Response: {:?}, len: {}", out0[2], out0[2].len());
     
     let ra = std::str::from_utf8(&oa).unwrap().trim_end_matches(0 as char);
     let rb = std::str::from_utf8(&ob).unwrap().trim_end_matches(0 as char);
