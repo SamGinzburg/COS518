@@ -12,6 +12,7 @@ use sharedlib::keys::get_keypair;
 use sharedlib::int_rpc::new_stub;
 use sharedlib::head_rpc::{ROUND_NUM, LOCAL_ROUND_ENDED, REMOTE_ROUND_ENDED,
 						  PROCESSED_BACKWARDS_MESSAGES, BACKWARDS_MESSAGES};
+use tokio_threadpool::{blocking};
 
 /*
  * This function is used to periodically end a round,
@@ -97,23 +98,27 @@ pub async fn end_round(s: State, m_vec: Vec<onion::Message>, server_addr: String
 	Ok((s, m_vec))
 }
 
-
-pub async fn cleanup(s: State)
--> io::Result<()> {
+pub async fn waiting_for_next(s: State)
+-> io::Result<State> {
 	// after we end the round, we will begin receiving msg's from the int_server
 	println!("waiting for intermediate server to finish!");
 
 	// wait int_server signals it is done sending us messages
-	let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
-	let mut flag = b.lock().unwrap();
-	while !*flag {
-		flag = cvar.wait(flag).unwrap();
-	}
-
+	blocking(|| {
+		let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
+		let mut flag = b.lock().unwrap();
+		while !*flag {
+			flag = cvar.wait(flag).unwrap();
+		}
+	}).map_err(|_| panic!("the threadpool shut down")).unwrap();
 	println!("round ended by intermediate server!");
+	Ok(s)
+}
+
+pub async fn cleanup(s: State)
+-> io::Result<()> {
 	// unshuffle the permutations
 	let m_vec = BACKWARDS_MESSAGES.lock().unwrap();
-
 	let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
 	let returning_m_vec = backward(s, m_vec.to_vec());
 	for x in returning_m_vec.clone() {
@@ -125,7 +130,11 @@ pub async fn cleanup(s: State)
 	let mut rn = ROUND_NUM.lock().unwrap();
 	*rn += 1;
 	// reset cond var flag for next round
-	*flag = false;
+	{
+		let &(ref b, _) = &*REMOTE_ROUND_ENDED.clone();
+		let mut flag = b.lock().unwrap();
+		*flag = false;
+	}
 	println!("Round number incremented, now: {}", *rn);
 
 	// send all the messages back!
