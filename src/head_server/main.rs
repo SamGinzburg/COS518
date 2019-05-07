@@ -31,7 +31,8 @@ use std::{thread, time, io};
 
 use tarpc::server;
 use crate::round::{round_status_check, start_round, send_m_vec, end_round, cleanup};
-use sharedlib::head_rpc::{MESSAGES, BACKWARDS_MESSAGES, PROCESSED_BACKWARDS_MESSAGES};
+use sharedlib::head_rpc::{LOCAL_ROUND_ENDED, MESSAGES, BACKWARDS_MESSAGES,
+                          PROCESSED_BACKWARDS_MESSAGES};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -100,7 +101,7 @@ fn main() {
                 *p_backwards_m_vec = vec![];
             }
             // wait until round ends
-            thread::sleep(time::Duration::from_millis(1000));
+            thread::sleep(time::Duration::from_millis(2000));
             // acquire lock on MESSAGES
             println!("Starting round!!");
 	        let mut m_vec = MESSAGES.lock().unwrap();
@@ -113,15 +114,21 @@ fn main() {
             let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
             // signal end of round
             let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
-            let cleanup = end_round.and_then(|(s, v)| cleanup(s, v));
+            let cleanup = end_round.and_then(|(s, _)| cleanup(s));
 
             tokio::run((cleanup)
                         .map_err(|e| {
                             eprintln!("Fetch Error: {}", e) })
                         .boxed()
                         .compat(),);
+
             // empty our message buffer for the next round
             *m_vec = vec![];
+            // cleanup end round cvar
+            let tuple = LOCAL_ROUND_ENDED.clone();
+            let &(ref b, _) = &*tuple;
+            let mut flag = b.lock().unwrap();
+            *flag = false;
         }
     });
 

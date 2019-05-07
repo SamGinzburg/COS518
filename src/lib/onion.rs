@@ -129,9 +129,10 @@ pub fn decrypt(k : &DerivedKey, mut c : Message, p : EncryptionPurpose) -> Messa
 
     let aad = aead::Aad::empty();
 
-    aead::open_in_place(&opening_key, nonce, aad, 0, &mut c)
-        .expect("Encryption failed")
-        .to_vec()
+    match aead::open_in_place(&opening_key, nonce, aad, 0, &mut c) {
+        Err(e) => panic!("Encryption failed, error: {}", e),
+        Ok(result) => result.to_vec()
+    }
 }
 
 
@@ -153,10 +154,10 @@ pub fn forward_onion_encrypt(pks : &Vec<PublicKey>, mut m : Message) -> (Vec<Der
 
 pub fn backward_onion_decrypt(dks : &Vec<DerivedKey>, mut c : Message) -> Message {
     for dk in dks.iter() {
-        //println!("{:?}", c);
+        println!("Backwards decrypt msg: {:?}", c);
         c = decrypt(&dk, c, EncryptionPurpose::Backward);
     }
-    //println!("{:?}", c);
+    println!("{:?}", c);
     c
 }
 

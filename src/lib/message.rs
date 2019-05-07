@@ -1,5 +1,6 @@
 use crate::rand::Rng;
 use crate::onion;
+use std::hash::{Hash, Hasher};
 
 pub const RAW_SIZE : usize = 256;
 
@@ -46,6 +47,13 @@ impl Deaddrop {
         self.location
     }
 }
+/*
+impl Hash for Deaddrop {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.location.hash(state);
+    }
+}
+*/
 
 pub fn blank(d : &Deaddrop) -> onion::Message {
     pack(&vec![0; *CONTENT_SIZE], d)

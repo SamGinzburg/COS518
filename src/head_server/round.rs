@@ -10,7 +10,8 @@ use crate::HASHMAP;
 use sharedlib::keys::get_keypair;
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::int_rpc::new_stub;
-use sharedlib::head_rpc::{ROUND_NUM, REMOTE_ROUND_ENDED, PROCESSED_BACKWARDS_MESSAGES};
+use sharedlib::head_rpc::{ROUND_NUM, LOCAL_ROUND_ENDED, REMOTE_ROUND_ENDED,
+						  PROCESSED_BACKWARDS_MESSAGES, BACKWARDS_MESSAGES};
 
 /*
  * This function is used to periodically end a round,
@@ -21,7 +22,7 @@ pub async fn round_status_check(m_vec: Vec<onion::Message>, server_addr: String,
 -> io::Result<(State, Vec<onion::Message>)> {
 	println!("round_status_check");
 	// permute the messages *before* proceeding further
-	let n: Laplace = Laplace::new(1.0_f64, 1.0_f64);
+	let n = Laplace::new(1.0, 10.0);
 	let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
 	// read in the next two server pub keys
 	let mut key_vec = vec![];
@@ -97,7 +98,7 @@ pub async fn end_round(s: State, m_vec: Vec<onion::Message>, server_addr: String
 }
 
 
-pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
+pub async fn cleanup(s: State)
 -> io::Result<()> {
 	// after we end the round, we will begin receiving msg's from the int_server
 	println!("waiting for intermediate server to finish!");
@@ -111,8 +112,13 @@ pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
 
 	println!("round ended by intermediate server!");
 	// unshuffle the permutations
+	let m_vec = BACKWARDS_MESSAGES.lock().unwrap();
+
 	let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-	let returning_m_vec = backward(s, m_vec);
+	let returning_m_vec = backward(s, m_vec.to_vec());
+	for x in returning_m_vec.clone() {
+		println!("returning msg lengths: {:?}", x.len());
+	}
 	p_backwards_m_vec.extend(returning_m_vec);
 
 	// increment round count
@@ -121,6 +127,13 @@ pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
 	// reset cond var flag for next round
 	*flag = false;
 	println!("Round number incremented, now: {}", *rn);
+
+	// send all the messages back!
+	let tuple = LOCAL_ROUND_ENDED.clone();
+	let &(ref b, ref cvar) = &*tuple;
+	let mut flag = b.lock().unwrap();
+	*flag = true;
+	cvar.notify_all();
 
 	Ok(())
 }

@@ -4,6 +4,9 @@ use tarpc::{context};
 use std::str;
 use std::sync::{Arc, Mutex, Condvar};
 use crate::onion;
+use std::collections::HashMap;
+use crate::message::Deaddrop;
+use crate::message::{unpack, blank};
 
 lazy_static! {
     // a list of messages, protected by a global lock
@@ -16,12 +19,15 @@ lazy_static! {
                             Mutex::new(vec![]);
     pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
                         Arc::new((Mutex::new(false), Condvar::new()));
+    // used to block until the round ends
+    pub static ref LOCAL_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
+                        Arc::new((Mutex::new(false), Condvar::new()));
     pub static ref ROUND_NUM: Mutex<u32> = Mutex::new(0);
 }
 
 service! {
     // RPC's for the head server
-    rpc put(message: onion::Message) -> String;
+    rpc put(message: onion::Message) -> onion::Message;
     // this RPC should only be called by the next server in the chain
     rpc SendMessages(v: Vec<onion::Message>) -> bool;
     // this RPC should also only be called by the next server in the chain
@@ -36,15 +42,30 @@ pub struct HeadServer;
 
 impl self::Service for HeadServer {
     type GetrnFut = Ready<u32>;
-    type PutFut = Ready<String>;
+    type PutFut = Ready<onion::Message>;
     type SendMessagesFut = Ready<bool>;
     type EndRoundFut = Ready<bool>;
 
     fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
-        let mut m_vec = MESSAGES.lock().unwrap();
-        m_vec.push(s.clone());
-        println!("received message# = {}", m_vec.len());
-        future::ready(format!("PUT!"))
+        let mut msg_count = 0;
+        {
+            let mut m_vec = MESSAGES.lock().unwrap();
+            msg_count = m_vec.len();
+            m_vec.push(s.clone());
+        }
+        println!("DEBUG: incoming msg len: {:?}", s.clone().len());
+
+        // block until the current round ends, send back round reply
+        let &(ref b, ref cvar) = &*LOCAL_ROUND_ENDED.clone();
+        let mut flag = b.lock().unwrap();
+        while !*flag {
+            flag = cvar.wait(flag).unwrap();
+        }
+
+        let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
+        println!("DEBUG: Retrieving msg#: {}, total msg count#: {}", msg_count, msg_vec.len());
+        println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
+        future::ready(msg_vec[msg_count].clone())
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {

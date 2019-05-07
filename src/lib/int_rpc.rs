@@ -10,7 +10,6 @@ use crate::util::{backward, forward, Settings, State};
 use std::{io};
 use crate::keys::{PartyType, get};
 use crate::keys::get_keypair;
-use std::collections::HashMap;
 // TODO: need to find a way to dynamically switch which new_stub we use
 // depending on flags passed in. Probably by passing down a flag and conditionally
 // creating the new_stub.
@@ -77,7 +76,7 @@ pub async fn round_status_check(is: IntermediateServer, m_vec: Vec<onion::Messag
 -> io::Result<(State, Vec<onion::Message>)> {
 	println!("round_status_check");
 	// permute the messages *before* proceeding further
-	let n: Laplace = Laplace::new(1.0_f64, 1.0_f64);
+	let n = Laplace::new(1.0, 10.0);
 	let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
 	// read in the next server pub keys
 	let mut key_vec = vec![];
@@ -144,16 +143,13 @@ pub async fn end_round(s: State, m_vec: Vec<onion::Message>, server_addr: String
 
 pub async fn cleanup(s: State, m_vec: Vec<onion::Message>, server_addr: String, port: u16)
 -> io::Result<Vec<onion::Message>> {
-	// after we end the round, we will begin receiving msg's from the int_server
-	println!("waiting for next server to finish!");
-
 	// unshuffle the permutations
 	Ok(backward(s, m_vec))
 }
 
 // send messages to previous server finally & finish cleanup
-pub async fn wait_for_reply()
--> io::Result<(Vec<onion::Message>)> {
+pub async fn wait_for_reply(s: State)
+-> io::Result<(State, Vec<onion::Message>)> {
     // wait int_server signals it is done sending us messages
     println!("waiting on the next server to finish sending msgs");
     let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
@@ -165,7 +161,7 @@ pub async fn wait_for_reply()
     *flag = false;
     println!("round ended by the next server!");
     
-    Ok(BACKWARDS_MESSAGES.lock().unwrap().to_vec())
+    Ok((s, BACKWARDS_MESSAGES.lock().unwrap().to_vec()))
 }
 
 // send messages to previous server finally & finish cleanup
@@ -184,6 +180,7 @@ pub async fn backwards_send_msg(m_vec: Vec<onion::Message>, server_addr: String,
 	for count in 0..chunk_count {
         println!("sending message backwards!");
 		let msgs = m_vec_clone.get(count..count+1).unwrap().to_vec();
+        println!("msg len: {:?}", msgs[0].len());
 		await!(client.SendMessages(context::current(), msgs)).unwrap();
 	}
 
@@ -243,10 +240,10 @@ impl self::Service for IntermediateServer {
             let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8082));
             // signal end of round
             let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8082));
-            let cleanup = end_round.and_then(|(s, v)| cleanup(s, v, "127.0.0.1".to_string(), 8080));
-            let wait = cleanup.and_then(|_| wait_for_reply());
+            let wait = end_round.and_then(|(s, _)| wait_for_reply(s));
+            let backwards_permute = wait.and_then(|(s, v)| cleanup(s, v, "127.0.0.1".to_string(), 8080));
             // only after the next server is done, can we start sending msgs back
-            let respond = wait.and_then(|v| backwards_send_msg(v, "127.0.0.1".to_string(), 8080));
+            let respond = backwards_permute.and_then(|v| backwards_send_msg(v, "127.0.0.1".to_string(), 8080));
             let end_previous = respond.and_then(|_| backwards_end_round("127.0.0.1".to_string(), 8080));
             
             tokio::run((end_previous)
