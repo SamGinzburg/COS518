@@ -11,7 +11,7 @@ use sharedlib::keys::get_keypair;
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::int_rpc::new_stub;
 use sharedlib::head_rpc::{ROUND_NUM, LOCAL_ROUND_ENDED, REMOTE_ROUND_ENDED,
-						  PROCESSED_BACKWARDS_MESSAGES};
+						  PROCESSED_BACKWARDS_MESSAGES, BACKWARDS_MESSAGES};
 
 /*
  * This function is used to periodically end a round,
@@ -98,7 +98,7 @@ pub async fn end_round(s: State, m_vec: Vec<onion::Message>, server_addr: String
 }
 
 
-pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
+pub async fn cleanup(s: State)
 -> io::Result<()> {
 	// after we end the round, we will begin receiving msg's from the int_server
 	println!("waiting for intermediate server to finish!");
@@ -112,8 +112,13 @@ pub async fn cleanup(s: State, m_vec: Vec<onion::Message>)
 
 	println!("round ended by intermediate server!");
 	// unshuffle the permutations
+	let m_vec = BACKWARDS_MESSAGES.lock().unwrap();
+
 	let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-	let returning_m_vec = backward(s, m_vec);
+	let returning_m_vec = backward(s, m_vec.to_vec());
+	for x in returning_m_vec.clone() {
+		println!("returning msg lengths: {:?}", x.len());
+	}
 	p_backwards_m_vec.extend(returning_m_vec);
 
 	// increment round count

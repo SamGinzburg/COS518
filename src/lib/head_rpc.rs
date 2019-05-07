@@ -53,6 +53,8 @@ impl self::Service for HeadServer {
             msg_count = m_vec.len();
             m_vec.push(s.clone());
         }
+        println!("DEBUG: incoming msg len: {:?}", s.clone().len());
+
         // block until the current round ends, send back round reply
         let &(ref b, ref cvar) = &*LOCAL_ROUND_ENDED.clone();
         let mut flag = b.lock().unwrap();
@@ -62,6 +64,7 @@ impl self::Service for HeadServer {
 
         let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
         println!("DEBUG: Retrieving msg#: {}, total msg count#: {}", msg_count, msg_vec.len());
+        println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
 

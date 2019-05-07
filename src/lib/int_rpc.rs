@@ -180,6 +180,7 @@ pub async fn backwards_send_msg(m_vec: Vec<onion::Message>, server_addr: String,
 	for count in 0..chunk_count {
         println!("sending message backwards!");
 		let msgs = m_vec_clone.get(count..count+1).unwrap().to_vec();
+        println!("msg len: {:?}", msgs[0].len());
 		await!(client.SendMessages(context::current(), msgs)).unwrap();
 	}
 
