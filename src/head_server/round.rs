@@ -22,7 +22,7 @@ pub async fn round_status_check(m_vec: Vec<onion::Message>, server_addr: String,
 -> io::Result<(State, Vec<onion::Message>)> {
 	println!("round_status_check");
 	// permute the messages *before* proceeding further
-	let n: Laplace = Laplace::new(1.0_f64, 1.0_f64);
+	let n = Laplace::new(1.0, 10.0);
 	let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
 	// read in the next two server pub keys
 	let mut key_vec = vec![];

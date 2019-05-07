@@ -101,7 +101,7 @@ fn main() {
                 *p_backwards_m_vec = vec![];
             }
             // wait until round ends
-            thread::sleep(time::Duration::from_millis(1000));
+            thread::sleep(time::Duration::from_millis(5000));
             // acquire lock on MESSAGES
             println!("Starting round!!");
 	        let mut m_vec = MESSAGES.lock().unwrap();

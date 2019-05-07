@@ -47,12 +47,13 @@ impl Deaddrop {
         self.location
     }
 }
-
+/*
 impl Hash for Deaddrop {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.location.hash(state);
     }
 }
+*/
 
 pub fn blank(d : &Deaddrop) -> onion::Message {
     pack(&vec![0; *CONTENT_SIZE], d)
@@ -66,9 +67,8 @@ pub fn pack(m : &Vec<u8>, d : &Deaddrop) -> onion::Message {
 }
 
 pub fn unpack(w : onion::Message) -> (Vec<u8>, Deaddrop) {
-    let m = w.to_vec();
-    // we want the last 4 bytes
-    let d = Deaddrop::from_bytes(&w[..4]);
+    let m = w[..*CONTENT_SIZE].to_vec();
+    let d = Deaddrop::from_bytes(&w[*CONTENT_SIZE..]);
     (m, d)
 }
 

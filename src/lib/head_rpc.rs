@@ -60,11 +60,8 @@ impl self::Service for HeadServer {
             flag = cvar.wait(flag).unwrap();
         }
 
-        // get the message from the current round
-        let (_, dd) = unpack(s.clone());
-        // if no reply return a dummy message
         let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-        
+        println!("DEBUG: Retrieving msg#: {}, total msg count#: {}", msg_count, msg_vec.len());
         future::ready(msg_vec[msg_count].clone())
     }
 

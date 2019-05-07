@@ -27,16 +27,15 @@ pub async fn rpc_put(server_addr: String, port: u16, message: String, uid: usize
     let mut server_pub_keys = vec![];
     server_pub_keys.push(get(PartyType::Server.with_id(0)).unwrap());
     server_pub_keys.push(get(PartyType::Server.with_id(1)).unwrap());
-    //server_pub_keys.push(get(PartyType::Server.with_id(2)).unwrap());
+    server_pub_keys.push(get(PartyType::Server.with_id(2)).unwrap());
 
-    let (d_keys, enc_msg) = wrap(rn, message.as_bytes().to_vec(), &dk, &server_pub_keys);
+    let (d_key, enc_msg) = wrap(0, message.as_bytes().to_vec(), &dk, &server_pub_keys);
     // store the d_keys for when we receive a message at the end of the round
     // send it
+    println!("Encrypted msg: {:?}, len: {:?}", enc_msg, enc_msg.len());
     let return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
-
-    println!("return msg: {:?}", return_msg);
-
-    let unwrapped_msg = unwrap(rn, return_msg, &dk, d_keys);
+    println!("Response: {:?}, len: {:?}", return_msg, return_msg.len());
+    let unwrapped_msg = unwrap(0, return_msg.clone(), &dk, d_key);
     let mut output = String::from_utf8(unwrapped_msg).unwrap();
     output.push_str("\n");
     println!("{}", output);
