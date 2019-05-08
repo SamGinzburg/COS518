@@ -1,12 +1,11 @@
-use tarpc::futures::*;
-use tarpc::futures::future::Ready;
-use tarpc::{context};
-use std::str;
-use std::sync::{Arc, Mutex, Condvar};
+#![allow(non_snake_case)]
+
 use crate::onion;
-use std::collections::HashMap;
-use crate::message::Deaddrop;
-use crate::message::{unpack, blank};
+use std::str;
+use std::sync::{Arc, Condvar, Mutex};
+use tarpc::context;
+use tarpc::futures::future::Ready;
+use tarpc::futures::*;
 
 lazy_static! {
     // a list of messages, protected by a global lock
@@ -15,12 +14,12 @@ lazy_static! {
     pub static ref BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
     // buffer for messages *after* we process them
     // TODO: clients need to lookup by deaddrop, prob need a HashMap of some kind
-    pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = 
+    pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> =
                             Mutex::new(vec![]);
-    pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
+    pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> =
                         Arc::new((Mutex::new(false), Condvar::new()));
     // used to block until the round ends
-    pub static ref LOCAL_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> = 
+    pub static ref LOCAL_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> =
                         Arc::new((Mutex::new(false), Condvar::new()));
     pub static ref ROUND_NUM: Mutex<u32> = Mutex::new(0);
 }
@@ -47,7 +46,7 @@ impl self::Service for HeadServer {
     type EndRoundFut = Ready<bool>;
 
     fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
-        let mut msg_count = 0;
+        let msg_count;
         {
             let mut m_vec = MESSAGES.lock().unwrap();
             msg_count = m_vec.len();
@@ -63,7 +62,11 @@ impl self::Service for HeadServer {
         }
 
         let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-        println!("DEBUG: Retrieving msg#: {}, total msg count#: {}", msg_count, msg_vec.len());
+        println!(
+            "DEBUG: Retrieving msg#: {}, total msg count#: {}",
+            msg_count,
+            msg_vec.len()
+        );
         println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
@@ -89,5 +92,3 @@ impl self::Service for HeadServer {
         future::ready(*ROUND_NUM.lock().unwrap())
     }
 }
-
-

@@ -1,30 +1,28 @@
-use crate::rand::Rng;
 use crate::onion;
+use crate::rand::Rng;
 
-pub const RAW_SIZE : usize = 256;
+pub const RAW_SIZE: usize = 256;
 
 lazy_static! {
-    pub static ref CONTENT_SIZE : usize =
-        RAW_SIZE + *onion::TAG_LEN;
+    pub static ref CONTENT_SIZE: usize = RAW_SIZE + *onion::TAG_LEN;
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Deaddrop {
-    location : u32,
+    location: u32,
 }
 
 impl Deaddrop {
-    pub fn new(dk : &onion::DerivedKey) -> Deaddrop {
+    pub fn new(dk: &onion::DerivedKey) -> Deaddrop {
         Deaddrop::from_bytes(&dk[..4])
     }
 
-    pub fn from_bytes(bytes : &[u8]) -> Deaddrop {
+    pub fn from_bytes(bytes: &[u8]) -> Deaddrop {
         // TODO: check endianness
-        let location =
-            ((bytes[0] as u32) << 24) +
-            ((bytes[1] as u32) << 16) +
-            ((bytes[2] as u32) <<  8) +
-            ((bytes[3] as u32) <<  0);
+        let location = ((bytes[0] as u32) << 24)
+            + ((bytes[1] as u32) << 16)
+            + ((bytes[2] as u32) << 8)
+            + ((bytes[3] as u32) << 0);
         Deaddrop { location }
     }
 
@@ -47,18 +45,18 @@ impl Deaddrop {
     }
 }
 
-pub fn blank(d : &Deaddrop) -> onion::Message {
+pub fn blank(d: &Deaddrop) -> onion::Message {
     pack(&vec![0; *CONTENT_SIZE], d)
 }
 
-pub fn pack(m : &Vec<u8>, d : &Deaddrop) -> onion::Message {
+pub fn pack(m: &Vec<u8>, d: &Deaddrop) -> onion::Message {
     let mut p = Vec::with_capacity(4 + *CONTENT_SIZE);
     p.extend(m);
     p.extend(&d.bytes());
     p
 }
 
-pub fn unpack(w : onion::Message) -> (Vec<u8>, Deaddrop) {
+pub fn unpack(w: onion::Message) -> (Vec<u8>, Deaddrop) {
     let m = w[..*CONTENT_SIZE].to_vec();
     let d = Deaddrop::from_bytes(&w[*CONTENT_SIZE..]);
     (m, d)
@@ -71,7 +69,7 @@ mod test {
 
     #[test]
     fn from_bytes_correct() {
-        let b : [u8; 4] = [1, 2, 3, 4];
+        let b: [u8; 4] = [1, 2, 3, 4];
         let drop = Deaddrop::from_bytes(&b);
 
         assert_eq!(drop.bytes(), b);
