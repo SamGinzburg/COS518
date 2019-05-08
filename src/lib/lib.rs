@@ -6,6 +6,7 @@
     proc_macro_hygiene
 )]
 
+extern crate byteorder;
 #[macro_use]
 extern crate tarpc;
 #[macro_use]

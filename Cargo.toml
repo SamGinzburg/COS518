@@ -42,4 +42,5 @@ futures-preview = { version = "0.3.0-alpha.14", features = ["compat"] }
 futures-await-async-macro = "0.1.4"
 tokio-async-await = "0.1.0"
 tokio-threadpool = "0.1.14"
+byteorder = "1.3.1"
 

@@ -34,7 +34,7 @@ where
     let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
 
     for wrapped in input {
-        let (pk, cipher) = onion::unwrap(&wrapped);
+        let (pk, cipher) = message::unwrap(&wrapped);
         let dk = onion::derive(&settings.sk, &pk);
         let inner = onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward);
 
@@ -52,14 +52,14 @@ where
 
     for _i in 0..n1 {
         let m = message::blank(&message::Deaddrop::sample());
-        let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
+        let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
         inners.push(wrapped);
     }
 
     for _i in 0..n2 {
         for _j in 0..2 {
             let m = message::blank(&message::Deaddrop::sample());
-            let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
+            let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
             inners.push(wrapped);
         }
     }
@@ -67,7 +67,6 @@ where
     // permute
     let permutation = Permutation::sample(m);
     let output: Vec<onion::Message> = permutation.apply(inners);
-    //let output = inners; // no permute
 
     (
         State {
@@ -81,14 +80,12 @@ where
 
 pub fn backward(state: State, input: Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
-    let unpermuted = state.permutation.inverse().apply(input);
-    //let unpermuted = input; // no permute
+    let mut unpermuted = state.permutation.inverse().apply(input);
 
     // re-encrypt
     let mut ciphers: Vec<onion::Message> = Vec::with_capacity(state.n);
-    for (m, dk) in unpermuted.iter().zip(state.keys.iter()) {
-        // TODO: avoid cloning m
-        let c = onion::encrypt(dk, m.to_vec(), onion::EncryptionPurpose::Backward);
+    for (m, dk) in unpermuted.drain(..).zip(state.keys.iter()) {
+        let c = onion::encrypt(dk, m, onion::EncryptionPurpose::Backward);
         ciphers.push(c);
     }
 
