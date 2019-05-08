@@ -50,19 +50,57 @@ lazy_static! {
                             .long("forward")
                             .help("Flag to tell if we are forwarding to deaddrop or no")
                             .takes_value(true))
-
+                        .arg(Arg::with_name("addr")
+                            .short("a")
+                            .long("addr")
+                            .help("Specifies which addr to bind the RPC server to")
+                            .takes_value(true))
+                        .arg(Arg::with_name("port")
+                            .short("p")
+                            .long("port")
+                            .help("Specifies which port to bind the RPC server to")
+                            .takes_value(true))
+                        .arg(Arg::with_name("nextaddr")
+                            .long("nextaddr")
+                            .help("Specifies the addr of the next server in the chain")
+                            .takes_value(true))
+                        .arg(Arg::with_name("nextport")
+                            .long("nextport")
+                            .help("Specifies the port of the next server in the chain")
+                            .takes_value(true))
+                        .arg(Arg::with_name("prevaddr")
+                            .long("prevaddr")
+                            .help("Specifies the addr of the previous server in the chain")
+                            .takes_value(true))
+                        .arg(Arg::with_name("prevport")
+                            .long("prevport")
+                            .help("Specifies the port of the previous server in the chain")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("1").clone());
+        let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
+        let server_port = String::from(matches.value_of("port").unwrap_or("8081").clone());
+        let next_server_ip = String::from(matches.value_of("nextaddr").unwrap_or("127.0.0.1").clone());
+        let next_server_port = String::from(matches.value_of("nextport").unwrap_or("8082").clone());
+        let prev_server_ip = String::from(matches.value_of("prevaddr").unwrap_or("127.0.0.1").clone());
+        let prev_server_port = String::from(matches.value_of("prevport").unwrap_or("8080").clone());
+
 
         m.insert(String::from("server_id"), server_uid);
+        m.insert(String::from("server_ip"), server_ip);
+        m.insert(String::from("server_port"), server_port);
+        m.insert(String::from("next_server_ip"), next_server_ip);
+        m.insert(String::from("next_server_port"), next_server_port);
+        m.insert(String::from("prev_server_ip"), prev_server_ip);
+        m.insert(String::from("prev_server_port"), prev_server_port);
         m.clone()
     };
 }
 
-async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
-    let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
-    let transport = listen(&server_addr)?;
+async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
+    let parsed_server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
+    let transport = listen(&parsed_server_addr)?;
     let _addr = transport.local_addr();
 
     let server_id = match HASHMAP.get(&String::from("server_id")) {
@@ -71,6 +109,25 @@ async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
         // no param!
         None => panic!("No input provided for the server_id flag!"),
     };
+
+    let nextaddr: Ipv4Addr = HASHMAP
+        .get(&String::from("next_server_ip")).unwrap().parse().unwrap();
+
+    let nextport = HASHMAP
+        .get(&String::from("next_server_port"))
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+
+    let prevaddr: Ipv4Addr = HASHMAP
+        .get(&String::from("prev_server_ip")).unwrap().parse().unwrap();
+
+    let prevport = HASHMAP
+        .get(&String::from("prev_server_port"))
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+
     // The server is configured with the defaults.
     let server = server::new(server::Config::default())
         // Server can listen on any type that implements the Transport trait.
@@ -79,6 +136,10 @@ async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
         // the generated Service trait.
         .respond_with(serve(IntermediateServer {
             server_id_arg: server_id,
+            next_server_ip: nextaddr,
+            next_server_port: nextport,
+            prev_server_ip: prevaddr,
+            prev_server_port: prevport,
             forward_arg: false,
         }));
 
@@ -96,10 +157,17 @@ fn main() {
         .get_matches();
 
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
-    // TODO: set ip/port combo via cli flags
-    let rpc_service = thread::spawn(|| {
+
+    let ip = HASHMAP.get(&String::from("server_ip")).unwrap();
+    let port = HASHMAP
+        .get(&String::from("server_port"))
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+
+    let rpc_service = thread::spawn(move || {
         tokio::run(
-            run_service("127.0.0.1", 8081)
+            run_service(ip, port)
                 .map_err(|e| eprintln!("RPC Error: {}", e))
                 .boxed()
                 .compat(),

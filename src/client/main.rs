@@ -57,6 +57,16 @@ lazy_static! {
                             .long("dial")
                             .help("Specifies the name of the person you are dialing")
                             .takes_value(true))
+                        .arg(Arg::with_name("addr")
+                            .short("a")
+                            .long("addr")
+                            .help("Specifies the IPv4 addr of the head server in the Vuvuzela chain")
+                            .takes_value(true))
+                        .arg(Arg::with_name("port")
+                            .short("p")
+                            .long("port")
+                            .help("Specifies the port of the head server in the Vuvuzela chain")
+                            .takes_value(true))
                         .get_matches();
 
         // if these unwraps fail, we must panic!
@@ -71,6 +81,11 @@ lazy_static! {
             None    => panic!("dial not specified in CLI arguments"),
         };
 
+        let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
+        let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
+
+        m.insert(String::from("server_ip"), server_ip);
+        m.insert(String::from("server_port"), server_port);
         m.insert(String::from("uid"), uid);
         m.insert(String::from("remote_uid"), remote_uid);
         m.clone()
@@ -95,6 +110,13 @@ fn send_message(s: &mut Cursive, message: &str) {
         .parse::<usize>()
         .unwrap();
 
+    let ip = HASHMAP.get(&String::from("server_ip")).unwrap();
+    let port = HASHMAP
+        .get(&String::from("server_port"))
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+
     let mut input: String = "".to_string();
 
     input.push_str(&message.to_string());
@@ -104,8 +126,8 @@ fn send_message(s: &mut Cursive, message: &str) {
     // TODO: set ip/port combo via cli flags
     tokio::run(
         rpc_put(
-            "127.0.0.1".to_string(),
-            8080,
+            ip.to_string(),
+            port,
             input.clone(),
             uid,
             remote_uid,

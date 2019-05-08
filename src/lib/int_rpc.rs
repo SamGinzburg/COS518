@@ -5,7 +5,7 @@ use crate::keys::{get, PartyType};
 use crate::laplace::{Laplace, TransformedDistribution};
 use crate::util::{backward, forward, Settings, State};
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, Ipv4Addr};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use tarpc::futures::future::Ready;
@@ -60,6 +60,10 @@ service! {
 #[derive(Clone, Copy, Debug)]
 pub struct IntermediateServer {
     pub server_id_arg: usize,
+    pub next_server_ip: Ipv4Addr,
+    pub next_server_port: u16,
+    pub prev_server_ip: Ipv4Addr,
+    pub prev_server_port: u16,
     pub forward_arg: bool,
 }
 
@@ -258,24 +262,28 @@ impl self::Service for IntermediateServer {
             let m_vec = MESSAGES.lock().unwrap();
             let copy_m_vec = m_vec.to_vec();
             drop(m_vec);
-            let shuffle = round_status_check(self, copy_m_vec, "127.0.0.1".to_string(), 8082);
+            let next_ip = self.next_server_ip;
+            let next_port = self.next_server_port.clone();
+            let prev_port = self.prev_server_port.clone();
+
+            let shuffle = round_status_check(self, copy_m_vec, next_ip.to_string(), next_port);
             // signal int_server to start round
             let start_new_round =
-                shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8082));
+                shuffle.and_then(move |(s, v)| start_round(s, v, next_ip.to_string(), next_port.clone()));
             // begin sending messages in batches
             let send_msgs =
-                start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8082));
+                start_new_round.and_then(move |(s, v)| send_m_vec(s, v, next_ip.to_string(), next_port.clone()));
             // signal end of round
             let end_round =
-                send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8082));
+                send_msgs.and_then(move |(s, v)| end_round(s, v, next_ip.to_string(), next_port.clone()));
             let wait = end_round.and_then(|(s, _)| wait_for_reply(s));
             let backwards_permute =
-                wait.and_then(|(s, v)| cleanup(s, v, "127.0.0.1".to_string(), 8080));
+                wait.and_then(move |(s, v)| cleanup(s, v, self.prev_server_ip.to_string(), prev_port.clone()));
             // only after the next server is done, can we start sending msgs back
             let respond = backwards_permute
-                .and_then(|v| backwards_send_msg(v, "127.0.0.1".to_string(), 8080));
+                .and_then(move |v| backwards_send_msg(v, self.prev_server_ip.to_string(), prev_port));
             let end_previous =
-                respond.and_then(|_| backwards_end_round("127.0.0.1".to_string(), 8080));
+                respond.and_then(move |_| backwards_end_round(self.prev_server_ip.to_string(), prev_port));
 
             tokio::run(
                 (end_previous)

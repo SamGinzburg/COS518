@@ -53,11 +53,26 @@ lazy_static! {
                             .long("server_id")
                             .help("Specifies which server keypair to use")
                             .takes_value(true))
+                        .arg(Arg::with_name("addr")
+                            .short("a")
+                            .long("addr")
+                            .help("Specifies which addr to bind the RPC server to")
+                            .takes_value(true))
+                        .arg(Arg::with_name("port")
+                            .short("p")
+                            .long("port")
+                            .help("Specifies which port to bind the RPC server to")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("0").clone());
+        let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
+        let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
 
         m.insert(String::from("server_id"), server_uid);
+        m.insert(String::from("server_ip"), server_ip);
+        m.insert(String::from("server_port"), server_port);
+
         m.clone()
     };
 }
@@ -82,11 +97,17 @@ async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
 
 fn main() {
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
-    // TODO: set ip/port combo via cli flags
+    let ip = HASHMAP.get(&String::from("server_ip")).unwrap();
+    let port = HASHMAP
+        .get(&String::from("server_port"))
+        .unwrap()
+        .parse::<u16>()
+        .unwrap();
+
     let pool = ThreadPool::new();
 
     pool.spawn(
-        run_service("", 8080)
+        run_service(ip, port)
             .map_err(|e| eprintln!("RPC Error: {}", e))
             .boxed()
             .compat(),
