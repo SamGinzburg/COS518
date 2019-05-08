@@ -104,7 +104,7 @@ pub fn encrypt(k: &DerivedKey, m: Message, p: EncryptionPurpose) -> Message {
     in_out
 }
 
-pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Message {
+pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Result<Message, ()> {
     let opening_key = aead::OpeningKey::new(AEAD, k).expect("Cannot decrypt using derived key.");
 
     let nonce = aead::Nonce::assume_unique_for_key(p.into());
@@ -112,8 +112,8 @@ pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Message 
     let aad = aead::Aad::empty();
 
     match aead::open_in_place(&opening_key, nonce, aad, 0, &mut c) {
-        Err(e) => panic!("Encryption failed, error: {}", e),
-        Ok(result) => result.to_vec(),
+        Err(_) => Err(()),
+        Ok(result) => Ok(result.to_vec()),
     }
 }
 
@@ -147,7 +147,20 @@ mod test {
 
         let m = "Hello, world!".as_bytes().to_vec();
         let c = encrypt(&d, m.clone(), EncryptionPurpose::Forward);
-        let m_dc = decrypt(&d, c, EncryptionPurpose::Forward);
+        let m_dc = decrypt(&d, c, EncryptionPurpose::Forward).unwrap();
         assert_eq!(m, m_dc);
+    }
+
+    #[test]
+    fn decrypt_can_fail() {
+        let (sk1, pk1) = keygen();
+        let (_sk2, pk2) = keygen();
+        let d1 = derive(&sk1, &pk2);
+        let d2 = derive(&sk1, &pk1);
+
+        let m = "Hello, world!".as_bytes().to_vec();
+        let c = encrypt(&d1, m, EncryptionPurpose::Forward);
+        let dc = decrypt(&d2, c, EncryptionPurpose::Forward);
+        assert_eq!(dc, Err(()));
     }
 }

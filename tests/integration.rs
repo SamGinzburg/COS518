@@ -85,11 +85,11 @@ fn crypto_integration_test() {
 
     // unwrap and compare
     //println!("try unwrap Alice...");
-    let oa = client_util::unwrap(r, out0[0].clone(), &pka, &dka, server_dksa);
+    let oa = client_util::unwrap(r, out0[0].clone(), &pka, &dka, server_dksa).unwrap();
     //println!("try unwrap Bob...");
-    let ob = client_util::unwrap(r, out0[1].clone(), &pkb, &dkb, server_dksb);
+    let ob = client_util::unwrap(r, out0[1].clone(), &pkb, &dkb, server_dksb).unwrap();
     //println!("try unwrap Charlie...");
-    let oc = client_util::unwrap(r, out0[2].clone(), &pkc, &dkc, server_dksc);
+    let oc = client_util::unwrap(r, out0[2].clone(), &pkc, &dkc, server_dksc).unwrap();
     //println!("Response: {:?}, len: {}", out0[2], out0[2].len());
 
     let ra = std::str::from_utf8(&oa)

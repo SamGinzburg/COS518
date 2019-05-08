@@ -35,13 +35,11 @@ pub fn forward_onion_encrypt(pks: &Vec<PublicKey>, mut m: Message) -> (Vec<Deriv
     (dks, m)
 }
 
-pub fn backward_onion_decrypt(dks: &Vec<DerivedKey>, mut c: Message) -> Message {
+pub fn backward_onion_decrypt(dks: &Vec<DerivedKey>, mut c: Message) -> Result<Message, ()> {
     for dk in dks.iter() {
-        //println!("Backwards decrypt msg: {:?}", c);
-        c = onion::decrypt(&dk, c, EncryptionPurpose::Backward);
+        c = onion::decrypt(&dk, c, EncryptionPurpose::Backward)?;
     }
-    //println!("{:?}", c);
-    c
+    Ok(c)
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -158,12 +156,12 @@ mod test {
         // server 1 unwrap decrypt
         let (pku, c) = unwrap(&w);
         let d1 = onion::derive(&sk1, &pku);
-        let w = onion::decrypt(&d1, c, EncryptionPurpose::Forward);
+        let w = onion::decrypt(&d1, c, EncryptionPurpose::Forward).unwrap();
 
         // server 2 unwrap decrypt
         let (pku, c) = unwrap(&w);
         let d2 = onion::derive(&sk2, &pku);
-        let w = onion::decrypt(&d2, c, EncryptionPurpose::Forward);
+        let w = onion::decrypt(&d2, c, EncryptionPurpose::Forward).unwrap();
 
         assert_eq!(m, w);
 
@@ -176,7 +174,7 @@ mod test {
         let c = onion::encrypt(&d1, c, EncryptionPurpose::Backward);
 
         // client decrypts
-        let n = backward_onion_decrypt(&dks, c);
+        let n = backward_onion_decrypt(&dks, c).unwrap();
 
         assert_eq!(m, n);
     }

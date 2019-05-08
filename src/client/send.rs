@@ -48,10 +48,16 @@ pub async fn rpc_put(
     println!("Encrypted msg: {:?}, len: {:?}", enc_msg, enc_msg.len());
     let return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
     println!("Response: {:?}, len: {:?}", return_msg, return_msg.len());
-    let unwrapped_msg = unwrap(rn, return_msg.clone(), &pub_key, &dk, d_key);
-    let mut output = String::from_utf8(unwrapped_msg).unwrap();
-    output.push_str("\n");
-    println!("{}", output);
+
+    if let Ok(unwrapped_msg) = unwrap(rn, return_msg.clone(), &pub_key, &dk, d_key.clone()) {
+        let output = String::from_utf8(unwrapped_msg).unwrap();
+        println!("{}\n", output);
+    } else if let Ok(_) = unwrap(rn, return_msg.clone(), &remote_pub_key, &dk, d_key) {
+        println!("Received original message: remote not present.");
+    } else {
+        println!("Could not decrypt: system error.");
+    }
+
     //t_box.append(output.clone());
 
     Ok(())
