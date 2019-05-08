@@ -72,7 +72,7 @@ pub struct IntermediateServer {
  * flush the messages to the next server in the chain,
  * and begin tracking messages for the next round.
  */
-pub async fn round_status_check(is: IntermediateServer, m_vec: Vec<onion::Message>, server_addr: String, port: u16)
+pub async fn round_status_check(is: IntermediateServer, m_vec: Vec<onion::Message>, _server_addr: String, _port: u16)
 -> io::Result<(State, Vec<onion::Message>)> {
 	println!("round_status_check");
 	// permute the messages *before* proceeding further
@@ -106,7 +106,7 @@ pub async fn start_round(s: State, m_vec: Vec<onion::Message>, server_addr: Stri
 	println!("start_round");
 	let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
 	let transport = await!(connect(&s_addr)).unwrap();
-	let mut client = await!(next_server_new_stub(client::Config::default(), transport)).unwrap();
+	let _client = await!(next_server_new_stub(client::Config::default(), transport)).unwrap();
     // TODO: figure out if we need this at all
 	//await!(client.StartNewRound(context::current())).unwrap();
 	Ok((s, m_vec))
@@ -141,7 +141,7 @@ pub async fn end_round(s: State, m_vec: Vec<onion::Message>, server_addr: String
 }
 
 
-pub async fn cleanup(s: State, m_vec: Vec<onion::Message>, server_addr: String, port: u16)
+pub async fn cleanup(s: State, m_vec: Vec<onion::Message>, _server_addr: String, _port: u16)
 -> io::Result<Vec<onion::Message>> {
 	// unshuffle the permutations
 	Ok(backward(s, m_vec))
@@ -229,7 +229,7 @@ impl self::Service for IntermediateServer {
     fn EndRound(self, _: context::Context) -> Self::EndRoundFut {
         // this is the trigger to spin off a thread to forward all messages
         // to the next server
-        let rpc_service = thread::spawn(move || {
+        let _rpc_service = thread::spawn(move || {
             let m_vec = MESSAGES.lock().unwrap();
             let copy_m_vec = m_vec.to_vec();
             drop(m_vec);

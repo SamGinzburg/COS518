@@ -29,10 +29,10 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use tarpc::server;
 
-async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
+async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let transport = listen(&server_addr)?;
-    let addr = transport.local_addr();
+    let _addr = transport.local_addr();
 
     // The server is configured with the defaults.
     let server = server::new(server::Config::default())

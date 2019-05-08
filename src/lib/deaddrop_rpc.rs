@@ -12,7 +12,7 @@ use crate::int_rpc::new_stub as prev_server_stub;
 use crate::util::{backward, forward, Settings, State};
 use crate::keys::get_keypair;
 use crate::laplace::{Laplace, TransformedDistribution};
-use crate::keys::{PartyType, get};
+use crate::keys::{PartyType};
 
 lazy_static! {
     pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
@@ -103,7 +103,7 @@ impl self::Service for DeadDropServer {
         // when the round is ended, send everything backwards to the previous server
         // in the chain
 
-        let rpc_service = thread::spawn(move || {
+        let _rpc_service = thread::spawn(move || {
             let m_vec = MESSAGES.lock().unwrap();
             let m_vec_copy = m_vec.to_vec();
             drop(m_vec);

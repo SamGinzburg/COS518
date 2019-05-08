@@ -33,7 +33,7 @@ use tarpc::server;
 use crate::round::{round_status_check, start_round, send_m_vec, end_round, waiting_for_next, cleanup};
 use sharedlib::head_rpc::{LOCAL_ROUND_ENDED, MESSAGES, BACKWARDS_MESSAGES,
                           PROCESSED_BACKWARDS_MESSAGES};
-use tokio_threadpool::{ThreadPool, blocking};
+use tokio_threadpool::{ThreadPool};
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the 
@@ -61,10 +61,10 @@ lazy_static! {
 }
 
 
-async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
+async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let transport = listen(&server_addr)?;
-    let addr = transport.local_addr();
+    let _addr = transport.local_addr();
 
     // The server is configured with the defaults.
     let server = server::new(server::Config::default())

@@ -19,7 +19,7 @@ use tokio_threadpool::{blocking};
  * flush the messages to the next server in the chain,
  * and begin tracking messages for the next round.
  */
-pub async fn round_status_check(m_vec: Vec<onion::Message>, server_addr: String, port: u16)
+pub async fn round_status_check(m_vec: Vec<onion::Message>, _server_addr: String, _port: u16)
 -> io::Result<(State, Vec<onion::Message>)> {
 	println!("round_status_check");
 	// permute the messages *before* proceeding further
@@ -63,7 +63,7 @@ pub async fn start_round(s: State, m_vec: Vec<onion::Message>, server_addr: Stri
 	println!("start_round");
 	let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
 	let transport = await!(connect(&s_addr)).unwrap();
-	let mut client = await!(new_stub(client::Config::default(), transport)).unwrap();
+	let _client = await!(new_stub(client::Config::default(), transport)).unwrap();
 	// figure out if we need this call at all
 	//await!(client.StartNewRound(context::current())).unwrap();
 	Ok((s, m_vec))
