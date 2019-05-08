@@ -1,3 +1,4 @@
+use crate::byteorder::{BigEndian, ByteOrder};
 use crate::ring::{aead, agreement, digest, hkdf, rand};
 use std::sync::Mutex;
 
@@ -16,10 +17,7 @@ pub enum EncryptionPurpose {
 
 fn bytes(v: u32) -> [u8; aead::NONCE_LEN] {
     let mut b = [0; aead::NONCE_LEN];
-    b[0] = ((v >> 24) & 0xff) as u8;
-    b[1] = ((v >> 16) & 0xff) as u8;
-    b[2] = ((v >> 8) & 0xff) as u8;
-    b[3] = ((v >> 0) & 0xff) as u8;
+    BigEndian::write_u32(&mut b, v);
     b
 }
 

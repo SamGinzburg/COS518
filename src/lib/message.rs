@@ -1,3 +1,4 @@
+use crate::byteorder::{BigEndian, ByteOrder};
 use crate::onion;
 use crate::rand::Rng;
 
@@ -18,11 +19,7 @@ impl Deaddrop {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Deaddrop {
-        // TODO: check endianness
-        let location = ((bytes[0] as u32) << 24)
-            + ((bytes[1] as u32) << 16)
-            + ((bytes[2] as u32) << 8)
-            + ((bytes[3] as u32) << 0);
+        let location = BigEndian::read_u32(bytes);
         Deaddrop { location }
     }
 
@@ -31,17 +28,14 @@ impl Deaddrop {
         Deaddrop { location }
     }
 
-    pub fn bytes(&self) -> [u8; 4] {
-        [
-            ((self.location >> 24) & 0xff) as u8,
-            ((self.location >> 16) & 0xff) as u8,
-            ((self.location >> 8) & 0xff) as u8,
-            ((self.location >> 0) & 0xff) as u8,
-        ]
-    }
-
     pub fn location(&self) -> u32 {
         self.location
+    }
+
+    fn bytes(&self) -> [u8; 4] {
+        let mut buf = [0; 4];
+        BigEndian::write_u32(&mut buf, self.location);
+        buf
     }
 }
 
