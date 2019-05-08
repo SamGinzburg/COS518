@@ -33,7 +33,7 @@ pub fn wrap(
     let w = message::pack(&e, &drop);
 
     // onion encrypt
-    onion::forward_onion_encrypt(server_pks, w)
+    message::forward_onion_encrypt(server_pks, w)
 }
 
 /// For Alice to unwrap her message received from Bob via servers
@@ -51,7 +51,7 @@ pub fn unwrap(
     server_dks: Vec<onion::DerivedKey>,
 ) -> Vec<u8> {
     // onion decrypt
-    let m = onion::backward_onion_decrypt(&server_dks, c);
+    let m = message::backward_onion_decrypt(&server_dks, c);
 
     // decrypt using Alice/Bob shared key
     let p = onion::EncryptionPurpose::FromBytes(round ^ from_bytes(pk));

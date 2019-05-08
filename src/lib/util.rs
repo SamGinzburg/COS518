@@ -34,7 +34,7 @@ where
     let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
 
     for wrapped in input {
-        let (pk, cipher) = onion::unwrap(&wrapped);
+        let (pk, cipher) = message::unwrap(&wrapped);
         let dk = onion::derive(&settings.sk, &pk);
         let inner = onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward);
 
@@ -52,14 +52,14 @@ where
 
     for _i in 0..n1 {
         let m = message::blank(&message::Deaddrop::sample());
-        let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
+        let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
         inners.push(wrapped);
     }
 
     for _i in 0..n2 {
         for _j in 0..2 {
             let m = message::blank(&message::Deaddrop::sample());
-            let (_dks, wrapped) = onion::forward_onion_encrypt(&settings.other_pks, m);
+            let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
             inners.push(wrapped);
         }
     }

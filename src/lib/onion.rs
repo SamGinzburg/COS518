@@ -37,7 +37,7 @@ static DIGEST: &digest::Algorithm = &digest::SHA256;
 
 lazy_static! {
     static ref RNG: Mutex<rand::SystemRandom> = Mutex::new(rand::SystemRandom::new());
-    static ref PK_LEN: usize = {
+    pub static ref PK_LEN: usize = {
         let (_sk, pk) = keygen();
         pk.len()
     };
@@ -60,17 +60,6 @@ pub fn keygen() -> (PrivateKey, PublicKey) {
     let sk = keys.as_ref().to_vec();
 
     (sk, pk)
-}
-
-pub fn wrap(k: &PublicKey, m: &Message) -> Message {
-    let mut w = Vec::with_capacity(*PK_LEN + m.len());
-    w.extend(k);
-    w.extend(m);
-    w
-}
-
-pub fn unwrap(w: &Message) -> (PublicKey, Message) {
-    (w[..*PK_LEN].to_vec(), w[*PK_LEN..].to_vec())
 }
 
 pub fn derive(k1: &PrivateKey, k2: &PublicKey) -> DerivedKey {
@@ -128,31 +117,6 @@ pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Message 
     }
 }
 
-pub fn forward_onion_encrypt(pks: &Vec<PublicKey>, mut m: Message) -> (Vec<DerivedKey>, Message) {
-    let mut dks = Vec::with_capacity(pks.len());
-
-    for pk_server in pks.iter().rev() {
-        let (sk, pk) = keygen();
-        let dk = derive(&sk, &pk_server);
-        let c = encrypt(&dk, m, EncryptionPurpose::Forward);
-        m = wrap(&pk, &c);
-        dks.push(dk);
-    }
-
-    dks.reverse();
-
-    (dks, m)
-}
-
-pub fn backward_onion_decrypt(dks: &Vec<DerivedKey>, mut c: Message) -> Message {
-    for dk in dks.iter() {
-        println!("Backwards decrypt msg: {:?}", c);
-        c = decrypt(&dk, c, EncryptionPurpose::Backward);
-    }
-    println!("{:?}", c);
-    c
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -163,17 +127,6 @@ mod test {
         let (_sk, pk2) = keygen();
 
         assert_ne!(pk1, pk2);
-    }
-
-    #[test]
-    fn wrap_invertible() {
-        let (_sk, pk) = keygen();
-        let m = "Hello, world!".as_bytes().to_vec();
-        let w = wrap(&pk, &m);
-        let (pk_uw, m_uw) = unwrap(&w);
-
-        assert_eq!(pk_uw, pk);
-        assert_eq!(m, m_uw);
     }
 
     #[test]
@@ -196,65 +149,5 @@ mod test {
         let c = encrypt(&d, m.clone(), EncryptionPurpose::Forward);
         let m_dc = decrypt(&d, c, EncryptionPurpose::Forward);
         assert_eq!(m, m_dc);
-    }
-
-    #[test]
-    fn integration() {
-        let (sk_server, pk_server) = keygen();
-        let (sk_client, pk_client) = keygen();
-
-        // client
-        let m = "Hello, server!".as_bytes().to_vec();
-        let d_client = derive(&sk_client, &pk_server);
-        let c = encrypt(&d_client, m.clone(), EncryptionPurpose::Forward);
-        let w = wrap(&pk_client, &c);
-
-        // server
-        let (pk_unwrapped, c_unwrapped) = unwrap(&w);
-        let d_server = derive(&sk_server, &pk_unwrapped);
-        let m_server = decrypt(&d_server, c_unwrapped, EncryptionPurpose::Forward);
-        assert_eq!(m, m_server);
-        let r = "Hello, client!".as_bytes().to_vec();
-        let c_server = encrypt(&d_server, r.clone(), EncryptionPurpose::Backward);
-
-        // client
-        let r_client = decrypt(&d_client, c_server, EncryptionPurpose::Backward);
-        assert_eq!(r, r_client);
-    }
-
-    #[test]
-    fn test_onion() {
-        let (sk1, pk1) = keygen();
-        let (sk2, pk2) = keygen();
-
-        let m = "Hello, onions!".as_bytes().to_vec();
-
-        // client encrypts
-        let (dks, w) = forward_onion_encrypt(&vec![pk1, pk2], m.clone());
-
-        // server 1 unwrap decrypt
-        let (pku, c) = unwrap(&w);
-        let d1 = derive(&sk1, &pku);
-        let w = decrypt(&d1, c, EncryptionPurpose::Forward);
-
-        // server 2 unwrap decrypt
-        let (pku, c) = unwrap(&w);
-        let d2 = derive(&sk2, &pku);
-        let w = decrypt(&d2, c, EncryptionPurpose::Forward);
-
-        assert_eq!(m, w);
-
-        let m = "Hello, client!".as_bytes().to_vec();
-
-        // server 2 re-encrypts
-        let c = encrypt(&d2, m.clone(), EncryptionPurpose::Backward);
-
-        // server 1 re-encrypts
-        let c = encrypt(&d1, c, EncryptionPurpose::Backward);
-
-        // client decrypts
-        let n = backward_onion_decrypt(&dks, c);
-
-        assert_eq!(m, n);
     }
 }
