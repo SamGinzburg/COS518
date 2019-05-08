@@ -26,8 +26,8 @@ fn bytes(v : u32) -> [u8; aead::NONCE_LEN] {
 impl Into<[u8; aead::NONCE_LEN]> for EncryptionPurpose {
     fn into(self) -> [u8; aead::NONCE_LEN] {
         bytes(match self {
-            Forward => 0,
-            Backward => 1,
+            EncryptionPurpose::Forward => 0,
+            EncryptionPurpose::Backward => 1,
             EncryptionPurpose::FromBytes(b) => b,
         })
     }

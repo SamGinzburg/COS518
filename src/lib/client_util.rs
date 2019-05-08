@@ -45,7 +45,7 @@ pub fn wrap(
 ///  server_dks : output from wrap
 pub fn unwrap(
     round : u32,
-    mut c : onion::Message,
+    c : onion::Message,
     pk : &onion::PublicKey,
     dk : &onion::DerivedKey,
     server_dks : Vec<onion::DerivedKey>,

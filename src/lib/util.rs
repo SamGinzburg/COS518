@@ -4,6 +4,8 @@ use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
 
+use std::collections::HashMap;
+
 pub struct Settings<D : Distribution<u32>> {
     pub other_pks: Vec<onion::PublicKey>,
     pub sk: onion::PrivateKey,
@@ -82,54 +84,38 @@ pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Messag
     ciphers
 }
 
-pub fn deaddrop(input : Vec<onion::Message>) -> Vec<onion::Message> {
+enum DeaddropState {
+    Once(usize),
+    Twice,
+}
+
+pub fn deaddrop(mut input : Vec<onion::Message>) -> Vec<onion::Message> {
+    const HASH_MARGIN : usize = 1; // tune up as needed to prevent map reallocation
+
     let n = input.len();
+    let mut map : HashMap<u32, DeaddropState> = HashMap::with_capacity(HASH_MARGIN * n);
+    let mut output : Vec<onion::Message> = Vec::with_capacity(n);
 
-    let mut unpacked : Vec<(Vec<u8>, u32)>
-        = Vec::with_capacity(n);
-    for w in input {
+    for (i, w) in input.drain(0..).enumerate() {
         let (m, d) = message::unpack(w);
-        unpacked.push((m, d.location()));
-    }
+        let dl = d.location();
+        output.push(m);
 
-
-    let order = Permutation::from_sort(
-        &mut unpacked, |(_m1, d1), (_m2, d2)| d1.partial_cmp(d2).unwrap());
-
-    let mut res_messages : Vec<onion::Message> = Vec::with_capacity(n);
-    let mut iter = unpacked.iter();
-    let mut prev_d = None;
-    let mut current = iter.next();
-
-    while let Some((m,d)) = current {
-
-        // deal with collisions
-        if let Some(dd) = prev_d {
-            if d == dd {
-                // TODO: print some context. Need abort round instead?
-                eprintln!("Deaddrop collision. Some messages may not be delivered.");
+        match map.remove(&dl) {
+            Some(DeaddropState::Twice) => {
+                eprintln!("Deaddrop collision in {}. Some messages may not be delivered.", dl);
+            },
+            Some(DeaddropState::Once(j)) => {
+                let mm = output.swap_remove(j);
+                output.push(mm);
+                map.insert(dl, DeaddropState::Twice);
+            },
+            None => {
+                map.insert(dl, DeaddropState::Once(i));
             }
         }
-        prev_d = Some(d);
-
-        // check next
-        current = iter.next();
-        match current {
-            Some((m_other, d_other)) if d == d_other => {
-                // swapping order if matched
-                res_messages.push(m_other.to_vec());
-                res_messages.push(m.to_vec());
-                // and advance
-                current = iter.next();
-            },
-            _ => {
-                // loner
-                res_messages.push(m.to_vec());
-            },
-        }
     }
 
-    let output = order.inverse().apply(res_messages);
     output
 }
 
