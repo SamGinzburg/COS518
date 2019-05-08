@@ -36,7 +36,12 @@ where
     for wrapped in input {
         let (pk, cipher) = message::unwrap(&wrapped);
         let dk = onion::derive(&settings.sk, &pk);
-        let inner = onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward);
+        let inner = match onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward) {
+            Ok(m) => m,
+
+            // for security, replace bad messages with fakes
+            Err(()) => message::blank(&message::Deaddrop::sample())
+        };
 
         keys.push(dk);
         inners.push(inner);

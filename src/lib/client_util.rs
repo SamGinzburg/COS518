@@ -49,9 +49,9 @@ pub fn unwrap(
     pk: &onion::PublicKey,
     dk: &onion::DerivedKey,
     server_dks: Vec<onion::DerivedKey>,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, ()> {
     // onion decrypt
-    let m = message::backward_onion_decrypt(&server_dks, c);
+    let m = message::backward_onion_decrypt(&server_dks, c)?;
 
     // decrypt using Alice/Bob shared key
     let p = onion::EncryptionPurpose::FromBytes(round ^ from_bytes(pk));
