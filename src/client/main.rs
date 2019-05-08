@@ -1,7 +1,7 @@
 #![feature(type_ascription, generators, proc_macro_hygiene, futures_api, arbitrary_self_types, await_macro, async_await)]
-#[macro_use] extern crate tarpc;
 #[macro_use] extern crate lazy_static;
 
+extern crate tarpc;
 extern crate clap;
 extern crate sharedlib;
 extern crate cursive;

@@ -1,7 +1,7 @@
 use std::{io};
 use tarpc::{client};
 use tarpc_bincode_transport::{connect};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
+use std::net::{IpAddr, SocketAddr};
 use sharedlib::head_rpc::new_stub;
 
 

@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use tarpc::futures::*;
 use tarpc::futures::future::Ready;
 use std::sync::{Mutex, Condvar, Arc};

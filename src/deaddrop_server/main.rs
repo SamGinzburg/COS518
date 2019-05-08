@@ -1,17 +1,13 @@
 #![feature(futures_api, arbitrary_self_types, await_macro, async_await)]
 
-#[macro_use] extern crate tarpc;
-
+extern crate tarpc;
 extern crate rand;
 extern crate clap;
 extern crate tarpc_bincode_transport;
 extern crate tokio;
 extern crate sharedlib;
 
-use crate::tarpc::futures::StreamExt;
-use crate::tarpc::futures::TryFutureExt;
-use crate::tarpc::futures::FutureExt;
-use crate::tarpc::futures::compat::Executor01CompatExt;
+use crate::tarpc::futures::{TryFutureExt, FutureExt, compat::Executor01CompatExt};
 
 use clap::{App};
 

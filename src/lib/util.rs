@@ -1,8 +1,7 @@
 use crate::onion;
 use crate::message;
 use crate::permute::Permutation;
-use rand::distributions::Distribution;
-use crate::rand::Rng;
+use crate::rand::distributions::Distribution;
 
 use std::collections::HashMap;
 

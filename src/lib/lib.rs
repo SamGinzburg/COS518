@@ -1,4 +1,4 @@
-#![feature(futures_api, pin, arbitrary_self_types, await_macro, async_await, proc_macro_hygiene)]
+#![feature(futures_api, arbitrary_self_types, await_macro, async_await, proc_macro_hygiene)]
 
 #[macro_use] extern crate tarpc;
 #[macro_use] extern crate lazy_static;

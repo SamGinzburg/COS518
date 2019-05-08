@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use tarpc::futures::*;
 use tarpc::futures::future::Ready;
 use tarpc::{context};
@@ -47,7 +49,7 @@ impl self::Service for HeadServer {
     type EndRoundFut = Ready<bool>;
 
     fn put(self, _: context::Context, s: onion::Message) -> Self::PutFut {
-        let mut msg_count = 0;
+        let msg_count;
         {
             let mut m_vec = MESSAGES.lock().unwrap();
             msg_count = m_vec.len();
