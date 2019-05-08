@@ -1,4 +1,4 @@
-use crate::ring::{agreement, aead, digest, hkdf, rand};
+use crate::ring::{aead, agreement, digest, hkdf, rand};
 use std::sync::Mutex;
 
 pub type PrivateKey = Vec<u8>; // bytes of sk
@@ -14,7 +14,7 @@ pub enum EncryptionPurpose {
     FromBytes(u32),
 }
 
-fn bytes(v : u32) -> [u8; aead::NONCE_LEN] {
+fn bytes(v: u32) -> [u8; aead::NONCE_LEN] {
     let mut b = [0; aead::NONCE_LEN];
     b[0] = ((v >> 24) & 0xff) as u8;
     b[1] = ((v >> 16) & 0xff) as u8;
@@ -33,33 +33,30 @@ impl Into<[u8; aead::NONCE_LEN]> for EncryptionPurpose {
     }
 }
 
-static AGREEMENT : &agreement::Algorithm = &agreement::X25519;
-static AEAD : &aead::Algorithm = &aead::AES_256_GCM;
-static DIGEST : &digest::Algorithm = &digest::SHA256;
+static AGREEMENT: &agreement::Algorithm = &agreement::X25519;
+static AEAD: &aead::Algorithm = &aead::AES_256_GCM;
+static DIGEST: &digest::Algorithm = &digest::SHA256;
 
 lazy_static! {
-    static ref RNG : Mutex<rand::SystemRandom> =
-        Mutex::new(rand::SystemRandom::new());
-
-    static ref PK_LEN : usize = {
+    static ref RNG: Mutex<rand::SystemRandom> = Mutex::new(rand::SystemRandom::new());
+    static ref PK_LEN: usize = {
         let (_sk, pk) = keygen();
         pk.len()
     };
-
-    pub static ref TAG_LEN : usize = {
-        AEAD.tag_len()
-    };
+    pub static ref TAG_LEN: usize = { AEAD.tag_len() };
 }
 
 macro_rules! rng {
-    () => {&*(RNG.lock().expect("Could not obtain Ring RNG."))}
+    () => {
+        &*(RNG.lock().expect("Could not obtain Ring RNG."))
+    };
 }
 
 // TODO: pass errors up!
 
 pub fn keygen() -> (PrivateKey, PublicKey) {
-    let keys = agreement::EphemeralPrivateKey::generate(AGREEMENT, rng!())
-        .expect("Key agreement failed");
+    let keys =
+        agreement::EphemeralPrivateKey::generate(AGREEMENT, rng!()).expect("Key agreement failed");
 
     let pk = keys.compute_public_key().unwrap().as_ref().to_vec();
     let sk = keys.as_ref().to_vec();
@@ -67,18 +64,18 @@ pub fn keygen() -> (PrivateKey, PublicKey) {
     (sk, pk)
 }
 
-pub fn wrap(k : &PublicKey, m : &Message) -> Message {
+pub fn wrap(k: &PublicKey, m: &Message) -> Message {
     let mut w = Vec::with_capacity(*PK_LEN + m.len());
     w.extend(k);
     w.extend(m);
     w
 }
 
-pub fn unwrap(w : &Message) -> (PublicKey, Message) {
+pub fn unwrap(w: &Message) -> (PublicKey, Message) {
     (w[..*PK_LEN].to_vec(), w[*PK_LEN..].to_vec())
 }
 
-pub fn derive(k1 : &PrivateKey, k2: &PublicKey) -> DerivedKey {
+pub fn derive(k1: &PrivateKey, k2: &PublicKey) -> DerivedKey {
     lazy_static! {
         // TODO (optional): use a non-empty salt value
         static ref SALT : hkdf::Salt = hkdf::Salt::new(DIGEST, &[]);
@@ -89,29 +86,28 @@ pub fn derive(k1 : &PrivateKey, k2: &PublicKey) -> DerivedKey {
     let usk = agreement::EphemeralPrivateKey::new(AGREEMENT, k1).unwrap();
 
     // secret point from key exchange
-    let secret = agreement::agree_ephemeral(
-        &usk, &upk, ring::error::Unspecified, |s| {
-            Ok(s.to_vec())
-        }
-    ).expect("Key agreement failed");
+    let secret =
+        agreement::agree_ephemeral(&usk, &upk, ring::error::Unspecified, |s| Ok(s.to_vec()))
+            .expect("Key agreement failed");
 
     // process into well-distributed AEAD key
-    let mut out : Vec<u8> = vec![0; AEAD.key_len()];
-    SALT.extract(&secret).expand(&[]).fill(&mut out)
+    let mut out: Vec<u8> = vec![0; AEAD.key_len()];
+    SALT.extract(&secret)
+        .expand(&[])
+        .fill(&mut out)
         .expect("Could not extract and expand secret");
 
     out
 }
 
-pub fn encrypt(k : &DerivedKey, m : Message, p : EncryptionPurpose) -> Message {
-    let sealing_key = aead::SealingKey::new(AEAD, k)
-        .expect("Cannot encrypt using derived key.");
+pub fn encrypt(k: &DerivedKey, m: Message, p: EncryptionPurpose) -> Message {
+    let sealing_key = aead::SealingKey::new(AEAD, k).expect("Cannot encrypt using derived key.");
 
     let nonce = aead::Nonce::assume_unique_for_key(p.into());
 
     let aad = aead::Aad::empty();
 
-    let mut in_out : Vec<u8> = Vec::with_capacity(m.len() + AEAD.tag_len());
+    let mut in_out: Vec<u8> = Vec::with_capacity(m.len() + AEAD.tag_len());
     in_out.extend(m);
     in_out.extend(vec![0; AEAD.tag_len()]);
 
@@ -121,9 +117,8 @@ pub fn encrypt(k : &DerivedKey, m : Message, p : EncryptionPurpose) -> Message {
     in_out
 }
 
-pub fn decrypt(k : &DerivedKey, mut c : Message, p : EncryptionPurpose) -> Message {
-    let opening_key = aead::OpeningKey::new(AEAD, k)
-        .expect("Cannot decrypt using derived key.");
+pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Message {
+    let opening_key = aead::OpeningKey::new(AEAD, k).expect("Cannot decrypt using derived key.");
 
     let nonce = aead::Nonce::assume_unique_for_key(p.into());
 
@@ -131,12 +126,11 @@ pub fn decrypt(k : &DerivedKey, mut c : Message, p : EncryptionPurpose) -> Messa
 
     match aead::open_in_place(&opening_key, nonce, aad, 0, &mut c) {
         Err(e) => panic!("Encryption failed, error: {}", e),
-        Ok(result) => result.to_vec()
+        Ok(result) => result.to_vec(),
     }
 }
 
-
-pub fn forward_onion_encrypt(pks : &Vec<PublicKey>, mut m : Message) -> (Vec<DerivedKey>, Message) {
+pub fn forward_onion_encrypt(pks: &Vec<PublicKey>, mut m: Message) -> (Vec<DerivedKey>, Message) {
     let mut dks = Vec::with_capacity(pks.len());
 
     for pk_server in pks.iter().rev() {
@@ -152,7 +146,7 @@ pub fn forward_onion_encrypt(pks : &Vec<PublicKey>, mut m : Message) -> (Vec<Der
     (dks, m)
 }
 
-pub fn backward_onion_decrypt(dks : &Vec<DerivedKey>, mut c : Message) -> Message {
+pub fn backward_onion_decrypt(dks: &Vec<DerivedKey>, mut c: Message) -> Message {
     for dk in dks.iter() {
         println!("Backwards decrypt msg: {:?}", c);
         c = decrypt(&dk, c, EncryptionPurpose::Backward);
@@ -199,7 +193,7 @@ mod test {
         let (sk1, _pk1) = keygen();
         let (_sk2, pk2) = keygen();
         let d = derive(&sk1, &pk2);
-        
+
         let m = "Hello, world!".as_bytes().to_vec();
         let c = encrypt(&d, m.clone(), EncryptionPurpose::Forward);
         let m_dc = decrypt(&d, c, EncryptionPurpose::Forward);
@@ -238,7 +232,7 @@ mod test {
         let m = "Hello, onions!".as_bytes().to_vec();
 
         // client encrypts
-        let (dks, w) = forward_onion_encrypt(&vec!(pk1, pk2), m.clone());
+        let (dks, w) = forward_onion_encrypt(&vec![pk1, pk2], m.clone());
 
         // server 1 unwrap decrypt
         let (pku, c) = unwrap(&w);

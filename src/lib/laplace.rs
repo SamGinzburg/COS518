@@ -1,4 +1,7 @@
-use crate::rand::{distributions::{Distribution, OpenClosed01}, Rng};
+use crate::rand::{
+    distributions::{Distribution, OpenClosed01},
+    Rng,
+};
 use std::marker::PhantomData;
 
 /// Samples floating-point numbers according to the Laplace distribution
@@ -20,7 +23,7 @@ impl Laplace {
     /// `scale` must be positive.
     pub fn new(scale: f64, location: f64) -> Laplace {
         assert!((scale > 0.)x);
-        Laplace { scale,  location }
+        Laplace { scale, location }
     }
 }
 
@@ -33,25 +36,35 @@ impl Distribution<f64> for Laplace {
     }
 }
 
-
 /// Apply arbitrary transform to distribution.
 #[derive(Clone, Copy, Debug)]
-pub struct TransformedDistribution<S,T,D,F> {
+pub struct TransformedDistribution<S, T, D, F> {
     parent: D,
     transform: F,
     _s: PhantomData<S>,
-    _t: PhantomData<T>
+    _t: PhantomData<T>,
 }
 
-impl <S,T,D,F> TransformedDistribution<S,T,D,F> where
-    D : Distribution<S>, F : Fn(S) -> T {
-    pub fn new(parent : D, transform: F) -> TransformedDistribution<S,T,D,F> {
-        TransformedDistribution{ parent, transform, _s : PhantomData, _t : PhantomData }
+impl<S, T, D, F> TransformedDistribution<S, T, D, F>
+where
+    D: Distribution<S>,
+    F: Fn(S) -> T,
+{
+    pub fn new(parent: D, transform: F) -> TransformedDistribution<S, T, D, F> {
+        TransformedDistribution {
+            parent,
+            transform,
+            _s: PhantomData,
+            _t: PhantomData,
+        }
     }
 }
 
-impl <S,T,D,F> Distribution<T> for TransformedDistribution<S,T,D,F> where
-    D : Distribution<S>, F : Fn(S) -> T {
+impl<S, T, D, F> Distribution<T> for TransformedDistribution<S, T, D, F>
+where
+    D: Distribution<S>,
+    F: Fn(S) -> T,
+{
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> T {
         let s = rng.sample(&(self.parent));
         (self.transform)(s)

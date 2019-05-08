@@ -34,7 +34,8 @@ fn crypto_integration_test() {
 
     // noise
     let laplace = laplace::Laplace::new(1.0, 10.0);
-    let noise = laplace::TransformedDistribution::new(laplace, |x| u32::max(0, f64::ceil(x) as u32));
+    let noise =
+        laplace::TransformedDistribution::new(laplace, |x| u32::max(0, f64::ceil(x) as u32));
 
     // server settings
     let s0 = util::Settings {
@@ -90,10 +91,19 @@ fn crypto_integration_test() {
     //println!("try unwrap Charlie...");
     let oc = client_util::unwrap(r, out0[2].clone(), &pkc, &dkc, server_dksc);
     //println!("Response: {:?}, len: {}", out0[2], out0[2].len());
-    
-    let ra = std::str::from_utf8(&oa).unwrap().trim_end_matches(0 as char);
-    let rb = std::str::from_utf8(&ob).unwrap().trim_end_matches(0 as char);
-    let rc = std::str::from_utf8(&oc).unwrap().trim_end_matches(0 as char);
 
-    assert_eq!((ra, rb, rc), ("Hello, Alice!", "Hello, Bob!", "Hello, Charlie!"));
+    let ra = std::str::from_utf8(&oa)
+        .unwrap()
+        .trim_end_matches(0 as char);
+    let rb = std::str::from_utf8(&ob)
+        .unwrap()
+        .trim_end_matches(0 as char);
+    let rc = std::str::from_utf8(&oc)
+        .unwrap()
+        .trim_end_matches(0 as char);
+
+    assert_eq!(
+        (ra, rb, rc),
+        ("Hello, Alice!", "Hello, Bob!", "Hello, Charlie!")
+    );
 }

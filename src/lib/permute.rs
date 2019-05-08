@@ -8,31 +8,31 @@ pub struct Permutation {
 }
 
 impl Permutation {
-    pub fn sample(m : usize) -> Permutation {
+    pub fn sample(m: usize) -> Permutation {
         if m == 0 {
             // todo: do we need this?
-            return Permutation { map: vec![] }
+            return Permutation { map: vec![] };
         }
-        let mut map : Vec<usize> = (0..m).collect();
+        let mut map: Vec<usize> = (0..m).collect();
         map.shuffle(&mut rand::thread_rng());
         Permutation { map }
     }
 
     pub fn inverse(&self) -> Permutation {
-        let mut map : Vec<usize> = iter::repeat(0).take(self.map.len()).collect();
-        for (i,j) in self.map.iter().enumerate() {
+        let mut map: Vec<usize> = iter::repeat(0).take(self.map.len()).collect();
+        for (i, j) in self.map.iter().enumerate() {
             map[*j] = i;
         }
         Permutation { map }
     }
 
-    pub fn apply<T>(&self, input : Vec<T>) -> Vec<T> {
-        let mut tmp : Vec<Option<T>> = Vec::with_capacity(input.len());
+    pub fn apply<T>(&self, input: Vec<T>) -> Vec<T> {
+        let mut tmp: Vec<Option<T>> = Vec::with_capacity(input.len());
         for x in input {
             tmp.push(Some(x));
         }
 
-        let mut output : Vec<T> = Vec::with_capacity(tmp.len());
+        let mut output: Vec<T> = Vec::with_capacity(tmp.len());
         for i in &self.map {
             tmp.push(None);
             output.push(tmp.swap_remove(*i).unwrap());
@@ -42,7 +42,7 @@ impl Permutation {
     }
 
     #[cfg(test)]
-    fn from_vec(map : Vec<usize>) -> Permutation {
+    fn from_vec(map: Vec<usize>) -> Permutation {
         Permutation { map }
     }
 }

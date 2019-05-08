@@ -1,11 +1,11 @@
-use crate::onion;
 use crate::message;
+use crate::onion;
 use crate::permute::Permutation;
 use crate::rand::distributions::Distribution;
 
 use std::collections::HashMap;
 
-pub struct Settings<D : Distribution<u32>> {
+pub struct Settings<D: Distribution<u32>> {
     pub other_pks: Vec<onion::PublicKey>,
     pub sk: onion::PrivateKey,
     pub noise: D,
@@ -19,14 +19,19 @@ pub struct State {
 }
 
 // straight-forward implementation; could be optimized
-pub fn forward<D>(input : Vec<onion::Message>, settings : &Settings<D>)-> (State, Vec<onion::Message>)
-where D : Distribution<u32> {
+pub fn forward<D>(
+    input: Vec<onion::Message>,
+    settings: &Settings<D>,
+) -> (State, Vec<onion::Message>)
+where
+    D: Distribution<u32>,
+{
     let mut rng = rand::thread_rng();
     let n = input.len();
 
     // unwrap, decrypt, and store keys
-    let mut keys : Vec<onion::PublicKey> = Vec::with_capacity(n);
-    let mut inners : Vec<onion::Message> = Vec::with_capacity(n);
+    let mut keys: Vec<onion::PublicKey> = Vec::with_capacity(n);
+    let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
 
     for wrapped in input {
         let (pk, cipher) = onion::unwrap(&wrapped);
@@ -41,7 +46,7 @@ where D : Distribution<u32> {
     let n1 = settings.noise.sample(&mut rng);
     let n2 = settings.noise.sample(&mut rng) / 2;
 
-    let adding = (n1 + 2*n2) as usize;
+    let adding = (n1 + 2 * n2) as usize;
     inners.reserve(adding);
     let m = n + adding;
 
@@ -58,22 +63,29 @@ where D : Distribution<u32> {
             inners.push(wrapped);
         }
     }
-    
+
     // permute
     let permutation = Permutation::sample(m);
-    let output : Vec<onion::Message> = permutation.apply(inners);
+    let output: Vec<onion::Message> = permutation.apply(inners);
     //let output = inners; // no permute
 
-    (State{ keys, permutation, n }, output)
+    (
+        State {
+            keys,
+            permutation,
+            n,
+        },
+        output,
+    )
 }
 
-pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Message> {
+pub fn backward(state: State, input: Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
     let unpermuted = state.permutation.inverse().apply(input);
     //let unpermuted = input; // no permute
 
     // re-encrypt
-    let mut ciphers : Vec<onion::Message> = Vec::with_capacity(state.n);
+    let mut ciphers: Vec<onion::Message> = Vec::with_capacity(state.n);
     for (m, dk) in unpermuted.iter().zip(state.keys.iter()) {
         // TODO: avoid cloning m
         let c = onion::encrypt(dk, m.to_vec(), onion::EncryptionPurpose::Backward);
@@ -88,12 +100,12 @@ enum DeaddropState {
     Twice,
 }
 
-pub fn deaddrop(mut input : Vec<onion::Message>) -> Vec<onion::Message> {
-    const HASH_MARGIN : usize = 1; // tune up as needed to prevent map reallocation
+pub fn deaddrop(mut input: Vec<onion::Message>) -> Vec<onion::Message> {
+    const HASH_MARGIN: usize = 1; // tune up as needed to prevent map reallocation
 
     let n = input.len();
-    let mut map : HashMap<u32, DeaddropState> = HashMap::with_capacity(HASH_MARGIN * n);
-    let mut output : Vec<onion::Message> = Vec::with_capacity(n);
+    let mut map: HashMap<u32, DeaddropState> = HashMap::with_capacity(HASH_MARGIN * n);
+    let mut output: Vec<onion::Message> = Vec::with_capacity(n);
 
     for (i, w) in input.drain(0..).enumerate() {
         let (m, d) = message::unpack(w);
@@ -102,13 +114,16 @@ pub fn deaddrop(mut input : Vec<onion::Message>) -> Vec<onion::Message> {
 
         match map.remove(&dl) {
             Some(DeaddropState::Twice) => {
-                eprintln!("Deaddrop collision in {}. Some messages may not be delivered.", dl);
-            },
+                eprintln!(
+                    "Deaddrop collision in {}. Some messages may not be delivered.",
+                    dl
+                );
+            }
             Some(DeaddropState::Once(j)) => {
                 let mm = output.swap_remove(j);
                 output.push(mm);
                 map.insert(dl, DeaddropState::Twice);
-            },
+            }
             None => {
                 map.insert(dl, DeaddropState::Once(i));
             }
@@ -124,8 +139,8 @@ mod test {
 
     #[test]
     fn deaddrop_switches() {
-        let d_loner = message::Deaddrop::from_bytes(&[1,1,1,1]);
-        let d_shared = message::Deaddrop::from_bytes(&[2,2,2,2]);
+        let d_loner = message::Deaddrop::from_bytes(&[1, 1, 1, 1]);
+        let d_shared = message::Deaddrop::from_bytes(&[2, 2, 2, 2]);
         let m1 = vec![1; *message::CONTENT_SIZE];
         let m2 = vec![2; *message::CONTENT_SIZE];
         let m3 = vec![3; *message::CONTENT_SIZE];

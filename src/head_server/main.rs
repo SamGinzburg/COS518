@@ -1,42 +1,44 @@
 #![feature(futures_api, arbitrary_self_types, await_macro, async_await)]
 
-#[macro_use] extern crate lazy_static;
+#[macro_use]
+extern crate lazy_static;
 
-extern crate tarpc;
-extern crate rand;
 extern crate clap;
+extern crate rand;
+extern crate sharedlib;
+extern crate tarpc;
 extern crate tarpc_bincode_transport;
 extern crate tokio;
-extern crate sharedlib;
 
 mod round;
 
-use crate::tarpc::futures::TryFutureExt;
-use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::compat::Executor01CompatExt;
+use crate::tarpc::futures::FutureExt;
+use crate::tarpc::futures::TryFutureExt;
 
 use clap::{App, Arg};
 use std::collections::HashMap;
 
-use tarpc::{
-    server::{Handler},
-};
+use tarpc::server::Handler;
 use tarpc_bincode_transport::listen;
 
-use sharedlib::head_rpc::HeadServer;
 use sharedlib::head_rpc::serve;
+use sharedlib::head_rpc::HeadServer;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::{thread, time, io};
+use std::{io, thread, time};
 
+use crate::round::{
+    cleanup, end_round, round_status_check, send_m_vec, start_round, waiting_for_next,
+};
+use sharedlib::head_rpc::{
+    BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, MESSAGES, PROCESSED_BACKWARDS_MESSAGES,
+};
 use tarpc::server;
-use crate::round::{round_status_check, start_round, send_m_vec, end_round, waiting_for_next, cleanup};
-use sharedlib::head_rpc::{LOCAL_ROUND_ENDED, MESSAGES, BACKWARDS_MESSAGES,
-                          PROCESSED_BACKWARDS_MESSAGES};
-use tokio_threadpool::{ThreadPool};
+use tokio_threadpool::ThreadPool;
 
 lazy_static! {
-    // quick hack to get args into callback function without modifying the 
+    // quick hack to get args into callback function without modifying the
     // cursive lib / making a custom UI object
     static ref HASHMAP: HashMap<String, String> = {
         let mut m = HashMap::new();
@@ -60,7 +62,6 @@ lazy_static! {
     };
 }
 
-
 async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port);
     let transport = listen(&server_addr)?;
@@ -75,7 +76,7 @@ async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
         .respond_with(serve(HeadServer));
 
     await!(server);
-    
+
     Ok(())
 }
 
@@ -84,12 +85,13 @@ fn main() {
     // TODO: set ip/port combo via cli flags
     let pool = ThreadPool::new();
 
-    pool.spawn(run_service("", 8080)
+    pool.spawn(
+        run_service("", 8080)
             .map_err(|e| eprintln!("RPC Error: {}", e))
             .boxed()
             .compat(),
     );
-    
+
     // start fetching data from server once GUI is initialized
     let handler = thread::spawn(move || {
         loop {
@@ -105,24 +107,28 @@ fn main() {
             thread::sleep(time::Duration::from_millis(2000));
             // acquire lock on MESSAGES
             println!("Starting round!!");
-	        let mut m_vec = MESSAGES.lock().unwrap();
+            let mut m_vec = MESSAGES.lock().unwrap();
             println!("m_vec lock acquired!");
 
             let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
             // signal int_server to start round
-            let start_new_round = shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8081));
+            let start_new_round =
+                shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8081));
             // begin sending messages in batches
-            let send_msgs = start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
+            let send_msgs =
+                start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
             // signal end of round
-            let end_round = send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
+            let end_round =
+                send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
             let wait = end_round.and_then(|(s, _)| waiting_for_next(s));
             let cleanup = wait.and_then(|s| cleanup(s));
 
-            tokio::run((cleanup)
-                        .map_err(|e| {
-                            eprintln!("Fetch Error: {}", e) })
-                        .boxed()
-                        .compat(),);
+            tokio::run(
+                (cleanup)
+                    .map_err(|e| eprintln!("Fetch Error: {}", e))
+                    .boxed()
+                    .compat(),
+            );
 
             // empty our message buffer for the next round
             *m_vec = vec![];
