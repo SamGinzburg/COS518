@@ -9,10 +9,6 @@ pub struct Permutation {
 
 impl Permutation {
     pub fn sample(m: usize) -> Permutation {
-        if m == 0 {
-            // todo: do we need this?
-            return Permutation { map: vec![] };
-        }
         let mut map: Vec<usize> = (0..m).collect();
         map.shuffle(&mut rand::thread_rng());
         Permutation { map }
@@ -67,6 +63,13 @@ mod test {
         let w = pi.inverse().apply(pi.apply(v));
 
         assert_eq!(w, vec!['a', 'b', 'c']);
+    }
+
+    #[test]
+    fn sampling_empty() {
+        let pi = Permutation::sample(0);
+        let empty: Vec<()> = vec![];
+        assert_eq!(pi.apply(empty.clone()), empty);
     }
 
     #[test]
