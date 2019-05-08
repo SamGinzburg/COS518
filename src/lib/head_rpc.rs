@@ -13,7 +13,6 @@ lazy_static! {
     // buffer for messages received
     pub static ref BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
     // buffer for messages *after* we process them
-    // TODO: clients need to lookup by deaddrop, prob need a HashMap of some kind
     pub static ref PROCESSED_BACKWARDS_MESSAGES: Mutex<Vec<onion::Message>> =
                             Mutex::new(vec![]);
     pub static ref REMOTE_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> =
