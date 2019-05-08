@@ -4,7 +4,7 @@ use crate::permute::Permutation;
 use rand::distributions::Distribution;
 use crate::rand::Rng;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub struct Settings<D : Distribution<u32>> {
     pub other_pks: Vec<onion::PublicKey>,
@@ -84,12 +84,16 @@ pub fn backward(state : State, input : Vec<onion::Message>) -> Vec<onion::Messag
     ciphers
 }
 
+enum DeaddropState {
+    Once(usize),
+    Twice,
+}
+
 pub fn deaddrop(mut input : Vec<onion::Message>) -> Vec<onion::Message> {
     const HASH_MARGIN : usize = 1; // tune up as needed to prevent map reallocation
 
     let n = input.len();
-    let mut map : HashMap<u32, usize> = HashMap::with_capacity(HASH_MARGIN * n);
-    let mut twice : HashSet<u32> = HashSet::with_capacity(HASH_MARGIN * n);
+    let mut map : HashMap<u32, DeaddropState> = HashMap::with_capacity(HASH_MARGIN * n);
     let mut output : Vec<onion::Message> = Vec::with_capacity(n);
 
     for (i, w) in input.drain(0..).enumerate() {
@@ -97,14 +101,18 @@ pub fn deaddrop(mut input : Vec<onion::Message>) -> Vec<onion::Message> {
         let dl = d.location();
         output.push(m);
 
-        if twice.contains(&dl) {
-            eprintln!("Deaddrop collision in {}. Some messages may not be delivered.", dl);
-        } else if let Some(j) = map.remove(&dl) {
-            let mm = output.swap_remove(j);
-            output.push(mm);
-            twice.insert(dl);
-        } else {
-            map.insert(dl, i);
+        match map.remove(&dl) {
+            Some(DeaddropState::Twice) => {
+                eprintln!("Deaddrop collision in {}. Some messages may not be delivered.", dl);
+            },
+            Some(DeaddropState::Once(j)) => {
+                let mm = output.swap_remove(j);
+                output.push(mm);
+                map.insert(dl, DeaddropState::Twice);
+            },
+            None => {
+                map.insert(dl, DeaddropState::Once(i));
+            }
         }
     }
 
