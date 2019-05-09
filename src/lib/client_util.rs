@@ -1,11 +1,5 @@
+use crate::byteorder::{BigEndian, ByteOrder};
 use crate::{message, onion};
-
-fn from_bytes(bytes: &Vec<u8>) -> u32 {
-    (((bytes[0] as u32) << 24)
-        + ((bytes[1] as u32) << 16)
-        + ((bytes[2] as u32) << 8)
-        + ((bytes[3] as u32) << 0))
-}
 
 /// For Alice to wrap a message to send to Bob over servers s1...sn.
 /// Put:
@@ -25,11 +19,14 @@ pub fn wrap(
     m.resize(message::RAW_SIZE, 0);
 
     // encrypt for Bob
-    let p = onion::EncryptionPurpose::FromBytes(round ^ from_bytes(pk));
+    let pk_bytes = BigEndian::read_u32(&pk[..4]);
+    let p = onion::EncryptionPurpose::FromBytes(round ^ pk_bytes);
     let e = onion::encrypt(&dk, m, p);
 
     // pack with deaddrop
-    let drop = message::Deaddrop::new(dk);
+    let mut round_bytes = [0; 4];
+    BigEndian::write_u32(&mut round_bytes, round);
+    let drop = message::Deaddrop::new(dk, &round_bytes);
     let w = message::pack(&e, &drop);
 
     // onion encrypt
@@ -54,6 +51,7 @@ pub fn unwrap(
     let m = message::backward_onion_decrypt(&server_dks, c)?;
 
     // decrypt using Alice/Bob shared key
-    let p = onion::EncryptionPurpose::FromBytes(round ^ from_bytes(pk));
+    let pk_bytes = BigEndian::read_u32(&pk[..4]);
+    let p = onion::EncryptionPurpose::FromBytes(round ^ pk_bytes);
     onion::decrypt(&dk, m, p)
 }

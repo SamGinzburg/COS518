@@ -48,8 +48,10 @@ pub struct Deaddrop {
 }
 
 impl Deaddrop {
-    pub fn new(dk: &DerivedKey) -> Deaddrop {
-        Deaddrop::from_bytes(&dk[..4])
+    pub fn new(dk: &DerivedKey, info: &[u8]) -> Deaddrop {
+        let mut bytes: Vec<u8> = vec![0; 4];
+        dk.extract_and_expand(info, &mut bytes);
+        Deaddrop::from_bytes(&bytes)
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Deaddrop {
@@ -115,15 +117,13 @@ mod test {
     }
 
     #[test]
-    fn from_key_correct() {
-        let (sk, _pk) = onion::keygen();
-        let (_sk, pk) = onion::keygen();
-        let dk = onion::derive(&sk, &pk);
-        let drop = Deaddrop::new(&dk);
-
-        assert_eq!(drop.bytes(), dk[..4]);
+    fn deaddrop_uses_dk() {
     }
 
+    #[test]
+    fn deaddrop_uses_info() {
+    }
+    
     #[test]
     fn sample_randomized() {
         let drop1 = Deaddrop::sample();

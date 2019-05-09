@@ -30,7 +30,7 @@ where
     let n = input.len();
 
     // unwrap, decrypt, and store keys
-    let mut keys: Vec<onion::PublicKey> = Vec::with_capacity(n);
+    let mut keys: Vec<onion::DerivedKey> = Vec::with_capacity(n);
     let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
 
     for wrapped in input {
