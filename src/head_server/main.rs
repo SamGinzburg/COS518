@@ -177,9 +177,9 @@ fn main() {
             let mut flag = b.lock().unwrap();
             *flag = false;
             // cleanup response handling
-            let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
+            let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
             let mut flag = b.lock().unwrap();
-            *flag = 0;
+            *(flag.get_mut()) = 0;
         }
     }).unwrap();
 

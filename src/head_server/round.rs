@@ -123,33 +123,38 @@ pub async fn waiting_for_next(s: State) -> io::Result<State> {
     // after we end the round, we will begin receiving msg's from the int_server
     println!("waiting for intermediate server to finish!");
 
-    // wait int_server signals it is done sending us messages
-    let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
-    let mut flag = b.lock().unwrap();
-    while !*flag {
-        flag = cvar.wait(flag).unwrap();
-    }
+    blocking(|| {
+        // wait int_server signals it is done sending us messages
+        let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
+        let mut flag = b.lock().unwrap();
+        while !*flag {
+            flag = cvar.wait(flag).unwrap();
+        }
+    })
+    .map_err(|_| panic!("the threadpool shut down"))
+    .unwrap();
+
     println!("round ended by intermediate server!");
     Ok(s)
 }
 
 pub async fn cleanup(s: State) -> io::Result<()> {
     // unshuffle the permutations
-    let mut returning_m_vec = vec![];
+    let mut _returning_m_vec = vec![];
     {
         let m_vec = BACKWARDS_MESSAGES.lock();
         match m_vec {
-            Err(e) => returning_m_vec = backward(s, e.into_inner().clone()),
-            Ok(v)  => returning_m_vec = backward(s, v.clone())
+            Err(e) => _returning_m_vec = backward(s, e.into_inner().clone()),
+            Ok(v)  => _returning_m_vec = backward(s, v.clone())
         }
     }
 
-    let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+    let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
     let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
         Err(e) => e.into_inner(),
-        Ok(mut v)  => v
+        Ok(v)  => v
     };
-    unwrapped_p_backwards_m_vec.extend(returning_m_vec);
+    unwrapped_p_backwards_m_vec.extend(_returning_m_vec);
 
     // increment round count
     let mut rn = ROUND_NUM.lock().unwrap();
@@ -171,19 +176,6 @@ pub async fn cleanup(s: State) -> io::Result<()> {
 
     // we need to actually wait for all messages to be flushed!
     println!("waiting to finish replying to all msgs");
-    /*
-    blocking(|| {
-        let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
-        let mut flag = b.lock().unwrap();
-        println!("Flag: {:?}, len: {:?}", *flag, unwrapped_p_backwards_m_vec.len());
-        while *flag != unwrapped_p_backwards_m_vec.len() {
-            flag = cvar.wait(flag).unwrap();
-            println!("wakeup: {:?}", flag);
-        }
-    })
-    .map_err(|_| panic!("the threadpool shut down"))
-    .unwrap();
-    */
 
     Ok(())
 }
@@ -193,13 +185,13 @@ pub async fn block_on_replies() -> io::Result<()> {
     let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
     let unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
         Err(e) => e.into_inner(),
-        Ok(mut v)  => v
+        Ok(v)  => v
     };
     blocking(|| {
         let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
         let mut flag = b.lock().unwrap();
         println!("Flag: {:?}, len: {:?}", *flag, unwrapped_p_backwards_m_vec.len());
-        while *flag != unwrapped_p_backwards_m_vec.len() {
+        while *(flag.get_mut()) != unwrapped_p_backwards_m_vec.len() {
             flag = cvar.wait(flag).unwrap();
         }
     })

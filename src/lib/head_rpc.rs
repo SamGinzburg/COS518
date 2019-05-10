@@ -7,7 +7,7 @@ use tarpc::context;
 use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tokio_threadpool::blocking;
-use futures::future::poll_fn;
+use std::sync::atomic::AtomicUsize;
 
 lazy_static! {
     // a list of messages, protected by a global lock
@@ -23,8 +23,8 @@ lazy_static! {
     pub static ref LOCAL_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> =
                         Arc::new((Mutex::new(false), Condvar::new()));
     // block until we finish replying to everyone
-    pub static ref REQUEST_RESPONSE_BLOCK: Arc<(Mutex<usize>, Condvar)> =
-                        Arc::new((Mutex::new(0), Condvar::new()));
+    pub static ref REQUEST_RESPONSE_BLOCK: Arc<(Mutex<AtomicUsize>, Condvar)> =
+                        Arc::new((Mutex::new(AtomicUsize::new(0)), Condvar::new()));
     pub static ref ROUND_NUM: Mutex<u32> = Mutex::new(0);
 }
 
@@ -66,10 +66,12 @@ impl self::Service for HeadServer {
             while !*flag {
                 let (f, _) = cvar.wait_timeout_ms(flag, 200).unwrap();
                 flag = f;
-                println!("waiting for end of round: count: {:?}", flag);
+                //println!("waiting for end of round: count: {:?}", flag);
             }
         })
-        .map_err(|_| panic!("the threadpool shut down"))
+        .map_err(|_| {
+            println!("unable to block!@!@!"); panic!("the threadpool shut down")
+        })
         .unwrap();
 
         let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
@@ -90,7 +92,7 @@ impl self::Service for HeadServer {
             Err(e) => e.into_inner(),
             Ok(o)  => o
         };
-        *flag += 1;
+        *flag.get_mut() += 1;
         cvar.notify_one();
 
         //println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
