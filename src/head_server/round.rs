@@ -11,7 +11,7 @@ use tarpc_bincode_transport::connect;
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::head_rpc::{
     BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, PROCESSED_BACKWARDS_MESSAGES, REMOTE_ROUND_ENDED,
-    ROUND_NUM,
+    ROUND_NUM, REQUEST_RESPONSE_BLOCK
 };
 use sharedlib::int_rpc::new_stub;
 use tokio_threadpool::blocking;
@@ -124,28 +124,32 @@ pub async fn waiting_for_next(s: State) -> io::Result<State> {
     println!("waiting for intermediate server to finish!");
 
     // wait int_server signals it is done sending us messages
-    blocking(|| {
-        let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
-        let mut flag = b.lock().unwrap();
-        while !*flag {
-            flag = cvar.wait(flag).unwrap();
-        }
-    })
-    .map_err(|_| panic!("the threadpool shut down"))
-    .unwrap();
+    let &(ref b, ref cvar) = &*REMOTE_ROUND_ENDED.clone();
+    let mut flag = b.lock().unwrap();
+    while !*flag {
+        flag = cvar.wait(flag).unwrap();
+    }
     println!("round ended by intermediate server!");
     Ok(s)
 }
 
 pub async fn cleanup(s: State) -> io::Result<()> {
     // unshuffle the permutations
-    let m_vec = BACKWARDS_MESSAGES.lock().unwrap();
-    let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-    let returning_m_vec = backward(s, m_vec.to_vec());
-    for x in returning_m_vec.clone() {
-        println!("returning msg lengths: {:?}", x.len());
+    let mut returning_m_vec = vec![];
+    {
+        let m_vec = BACKWARDS_MESSAGES.lock();
+        match m_vec {
+            Err(e) => returning_m_vec = backward(s, e.into_inner().clone()),
+            Ok(v)  => returning_m_vec = backward(s, v.clone())
+        }
     }
-    p_backwards_m_vec.extend(returning_m_vec);
+
+    let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+    let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
+        Err(e) => e.into_inner(),
+        Ok(mut v)  => v
+    };
+    unwrapped_p_backwards_m_vec.extend(returning_m_vec);
 
     // increment round count
     let mut rn = ROUND_NUM.lock().unwrap();
@@ -165,5 +169,41 @@ pub async fn cleanup(s: State) -> io::Result<()> {
     *flag = true;
     cvar.notify_all();
 
+    // we need to actually wait for all messages to be flushed!
+    println!("waiting to finish replying to all msgs");
+    /*
+    blocking(|| {
+        let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
+        let mut flag = b.lock().unwrap();
+        println!("Flag: {:?}, len: {:?}", *flag, unwrapped_p_backwards_m_vec.len());
+        while *flag != unwrapped_p_backwards_m_vec.len() {
+            flag = cvar.wait(flag).unwrap();
+            println!("wakeup: {:?}", flag);
+        }
+    })
+    .map_err(|_| panic!("the threadpool shut down"))
+    .unwrap();
+    */
+
+    Ok(())
+}
+
+
+pub async fn block_on_replies() -> io::Result<()> {
+    let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+    let unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
+        Err(e) => e.into_inner(),
+        Ok(mut v)  => v
+    };
+    blocking(|| {
+        let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
+        let mut flag = b.lock().unwrap();
+        println!("Flag: {:?}, len: {:?}", *flag, unwrapped_p_backwards_m_vec.len());
+        while *flag != unwrapped_p_backwards_m_vec.len() {
+            flag = cvar.wait(flag).unwrap();
+        }
+    })
+    .map_err(|_| panic!("the threadpool shut down"))
+    .unwrap();
     Ok(())
 }

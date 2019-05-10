@@ -5,7 +5,6 @@ use std::sync::Mutex;
 pub type PrivateKey = Vec<u8>; // bytes of sk
 pub type PublicKey = Vec<u8>; // bytes of pk
 pub type KeyPair = (PrivateKey, PublicKey);
-
 pub type DerivedKey = Vec<u8>;
 pub type Message = Vec<u8>;
 
