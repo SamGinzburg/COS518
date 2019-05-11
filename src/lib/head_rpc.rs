@@ -56,7 +56,7 @@ impl self::Service for HeadServer {
             msg_count = m_vec.len();
             m_vec.push(s.clone());
         }
-        println!("DEBUG: incoming msg len: {:?}", s.clone().len());
+        //println!("DEBUG: incoming msg len: {:?}", s.clone().len());
 
         // block until the current round ends, send back round reply
 
@@ -70,7 +70,7 @@ impl self::Service for HeadServer {
             }
         })
         .map_err(|_| {
-            println!("unable to block!@!@!"); panic!("the threadpool shut down")
+            println!("unable to block!"); panic!("the threadpool shut down")
         })
         .unwrap();
 
@@ -80,11 +80,11 @@ impl self::Service for HeadServer {
             Ok(o)  => o
         };
 
-        println!(
+        /*println!(
             "DEBUG: Retrieving msg#: {}, total msg count#: {}",
             msg_count,
             msg_vec.len()
-        );
+        );*/
 
         let tuple = REQUEST_RESPONSE_BLOCK.clone();
         let &(ref b, ref cvar) = &*tuple;
@@ -107,7 +107,7 @@ impl self::Service for HeadServer {
                 Ok(a)  => a
             };
             b_msgs.extend(v.clone());
-            println!("received messages from next server# = {}", b_msgs.len());
+            //println!("received messages from next server# = {}", b_msgs.len());
         })
         .map_err(|_| panic!("the threadpool shut down"))
         .unwrap();

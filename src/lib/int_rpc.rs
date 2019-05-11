@@ -12,6 +12,8 @@ use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
+use std::time::Instant;
+
 // TODO: need to find a way to dynamically switch which new_stub we use
 // depending on flags passed in. Probably by passing down a flag and conditionally
 // creating the new_stub.
@@ -65,6 +67,7 @@ pub struct IntermediateServer {
     pub prev_server_ip: Ipv4Addr,
     pub prev_server_port: u16,
     pub forward_arg: bool,
+    pub micro: f64,
 }
 
 /*
@@ -81,11 +84,11 @@ pub async fn round_status_check(
     is: IntermediateServer,
     m_vec: Vec<onion::Message>,
     _server_addr: String,
-    _port: u16,
+    _port: u16
 ) -> io::Result<(State, Vec<onion::Message>)> {
     println!("round_status_check");
     // permute the messages *before* proceeding further
-    let n = Laplace::new(1.0, 10.0);
+    let n = Laplace::new(1.0, is.micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     // read in the next server pub keys
     let mut key_vec = vec![];
@@ -109,7 +112,10 @@ pub async fn round_status_check(
         sk: server_priv_key,
         noise: transformed_noise,
     };
+
+    let now = Instant::now();
     let (state, processed_m_vec): (State, Vec<onion::Message>) = forward(m_vec, &settings);
+    println!("FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((state, processed_m_vec))
 }
@@ -142,10 +148,12 @@ pub async fn send_m_vec(
     // divide the m_vec into evenly sized chunks
     let chunk_count = m_vec.len();
     let m_vec_clone = m_vec.clone();
+    let now = Instant::now();
     for count in 0..chunk_count {
         let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
         await!(client.SendMessages(context::current(), msgs)).unwrap();
     }
+    println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((s, m_vec))
 }
@@ -207,12 +215,15 @@ pub async fn backwards_send_msg(
     let chunk_count = m_vec.len();
     println!("{}", chunk_count);
     let m_vec_clone = m_vec.clone();
+
+    let now = Instant::now();
     for count in 0..chunk_count {
-        println!("sending message backwards!");
+        //println!("sending message backwards!");
         let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
-        println!("msg len: {:?}", msgs[0].len());
+        //println!("msg len: {:?}", msgs[0].len());
         await!(client.SendMessages(context::current(), msgs)).unwrap();
     }
+    println!("NETWORK FORWARD TO HEAD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     // increment round count
     let mut rn = ROUND_NUM.lock().unwrap();
@@ -305,11 +316,11 @@ impl self::Service for IntermediateServer {
         if is_forward {
             let mut m_vec = MESSAGES.lock().unwrap();
             m_vec.extend(v.clone());
-            println!("# messages received from prev = {}", m_vec.len());
+            //println!("# messages received from prev = {}", m_vec.len());
         } else {
             let mut m_vec = BACKWARDS_MESSAGES.lock().unwrap();
             m_vec.extend(v.clone());
-            println!("# messages received from next = {}", m_vec.len());
+            //println!("# messages received from next = {}", m_vec.len());
         }
         future::ready(true)
     }

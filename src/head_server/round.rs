@@ -15,6 +15,7 @@ use sharedlib::head_rpc::{
 };
 use sharedlib::int_rpc::new_stub;
 use tokio_threadpool::blocking;
+use std::time::Instant;
 
 /*
  * This function is used to periodically end a round,
@@ -26,9 +27,17 @@ pub async fn round_status_check(
     _server_addr: String,
     _port: u16,
 ) -> io::Result<(State, Vec<onion::Message>)> {
-    println!("round_status_check");
+    //println!("round_status_check");
+
+    let micro: f64 = match HASHMAP.get(&String::from("micro")) {
+        // param was passed
+        Some(x) => x.parse::<f64>().unwrap(),
+        // no param!
+        None => panic!("No input provided for the micro flag!"),
+    };
+
     // permute the messages *before* proceeding further
-    let n = Laplace::new(1.0, 10.0);
+    let n = Laplace::new(1.0, micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     // read in the next two server pub keys
     let mut key_vec = vec![];
@@ -62,7 +71,10 @@ pub async fn round_status_check(
         sk: server_priv_key,
         noise: transformed_noise,
     };
+
+    let now = Instant::now();
     let (state, processed_m_vec): (State, Vec<onion::Message>) = forward(m_vec, &settings);
+    println!("FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((state, processed_m_vec))
 }
@@ -95,11 +107,13 @@ pub async fn send_m_vec(
     // divide the m_vec into evenly sized chunks
     let chunk_count = m_vec.len();
     let m_vec_clone = m_vec.clone();
+    let now = Instant::now();
     for count in 0..chunk_count {
         let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
-        println!("sending msgs");
+        //println!("sending msgs");
         await!(client.SendMessages(context::current(), msgs, true)).unwrap();
     }
+    println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((s, m_vec))
 }

@@ -24,7 +24,6 @@ use tarpc_bincode_transport::listen;
 
 use sharedlib::head_rpc::serve;
 use sharedlib::head_rpc::HeadServer;
-use std::time::Duration;
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::{io, thread, time};
@@ -38,8 +37,7 @@ use sharedlib::head_rpc::{
     REQUEST_RESPONSE_BLOCK
 };
 use tarpc::server;
-use tokio_threadpool::{ThreadPool, blocking};
-use futures::future::{lazy, poll_fn};
+use std::time::Instant;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the
@@ -67,15 +65,22 @@ lazy_static! {
                             .long("port")
                             .help("Specifies which port to bind the RPC server to")
                             .takes_value(true))
+                        .arg(Arg::with_name("micro")
+                            .short("m")
+                            .long("micro")
+                            .help("Specifies the value of μ, for differential privacy")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("0").clone());
         let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
         let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
+        let micro = String::from(matches.value_of("micro").unwrap_or("10").clone());
 
         m.insert(String::from("server_id"), server_uid);
         m.insert(String::from("server_ip"), server_ip);
         m.insert(String::from("server_port"), server_port);
+        m.insert(String::from("micro"), micro);
 
         m.clone()
     };
@@ -136,6 +141,10 @@ fn main() {
             }
             // wait until round ends
             thread::sleep(time::Duration::from_millis(2000));
+
+            // start timing the round
+            let now = Instant::now();
+
             // acquire lock on MESSAGES
             println!("Starting round!!");
             let mut m_vec = MESSAGES.lock().unwrap();
@@ -180,6 +189,7 @@ fn main() {
             let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
             let mut flag = b.lock().unwrap();
             *(flag.get_mut()) = 0;
+            println!("ROUND TIME ELAPSED (ms): {}", now.elapsed().as_millis());
         }
     }).unwrap();
 

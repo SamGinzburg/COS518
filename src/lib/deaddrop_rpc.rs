@@ -15,6 +15,7 @@ use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
+use std::time::Instant;
 
 lazy_static! {
     pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
@@ -52,9 +53,9 @@ pub async fn end_round(server_addr: String, port: u16) -> io::Result<()> {
     Ok(())
 }
 
-pub async fn forward_fn(m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<onion::Message>)> {
+pub async fn forward_fn(micro: f64, m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<onion::Message>)> {
     println!("forwarding...");
-    let n = Laplace::new(1.0, 10.0);
+    let n = Laplace::new(1.0, micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     let key_vec = vec![];
     let (server_priv_key, _) = match get_keypair(PartyType::Server.with_id(2)) {
@@ -66,7 +67,10 @@ pub async fn forward_fn(m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<on
         sk: server_priv_key,
         noise: transformed_noise,
     };
-    Ok(forward(m_vec, &settings))
+    let now = Instant::now();
+    let fwd = forward(m_vec, &settings);
+    println!("FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    Ok(fwd)
 }
 
 pub async fn dead_drop_fn(
@@ -74,7 +78,10 @@ pub async fn dead_drop_fn(
     m_vec: Vec<onion::Message>,
 ) -> io::Result<(State, Vec<onion::Message>)> {
     println!("swapping deaddrops...");
-    Ok((st, deaddrop(m_vec)))
+    let now = Instant::now();
+    let dd = deaddrop(m_vec);
+    println!("DEADDROP TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    Ok((st, dd))
 }
 
 pub async fn backwards_fn(
@@ -82,7 +89,10 @@ pub async fn backwards_fn(
     m_vec: Vec<onion::Message>,
 ) -> io::Result<(Vec<onion::Message>)> {
     println!("sending msgs backwards...");
-    Ok(backward(st, m_vec))
+    let now = Instant::now();
+    let bwd = backward(st, m_vec);
+    println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    Ok(bwd)
 }
 
 service! {
@@ -103,7 +113,9 @@ service! {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct DeadDropServer;
+pub struct DeadDropServer {
+    pub micro: f64,
+}
 
 impl self::Service for DeadDropServer {
     type EndRoundFut = Ready<bool>;
@@ -117,7 +129,7 @@ impl self::Service for DeadDropServer {
             let m_vec = MESSAGES.lock().unwrap();
             let m_vec_copy = m_vec.to_vec();
             drop(m_vec);
-            let fwd = forward_fn(m_vec_copy);
+            let fwd = forward_fn(self.micro, m_vec_copy);
             let dd = fwd.and_then(|(s, m)| dead_drop_fn(s, m));
             let bwd = dd.and_then(|(s, m)| backwards_fn(s, m));
             let send = bwd.and_then(|v| send_m_vec(v, "127.0.0.1".to_string(), 8081));
@@ -134,10 +146,10 @@ impl self::Service for DeadDropServer {
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {
-        println!("messages arriving to the deaddrop!");
+        //println!("messages arriving to the deaddrop!");
         let mut m_vec = MESSAGES.lock().unwrap();
         m_vec.extend(v.clone());
-        println!("mvec size: {}!", m_vec.len());
+        //println!("mvec size: {}!", m_vec.len());
 
         future::ready(true)
     }
