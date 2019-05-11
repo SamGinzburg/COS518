@@ -12,6 +12,7 @@ extern crate tarpc;
 #[macro_use]
 extern crate lazy_static;
 extern crate rand;
+extern crate rayon;
 extern crate ring;
 
 pub mod client_util;
