@@ -29,9 +29,10 @@ impl Laplace {
 
 impl Distribution<f64> for Laplace {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> f64 {
-        let u: f64 = rng.sample(OpenClosed01);
+        let s: f64 = rng.sample(OpenClosed01);
+        let u: f64 = s - 0.5;
 
-        // μ - b sgn(u) ln(1 - 2|u|)
+        // μ - b sgn(u) ln(1 - |u|)
         self.location - self.scale * u.signum() * ((-2.) * u.abs()).ln_1p()
     }
 }
@@ -80,6 +81,18 @@ mod test {
     #[should_panic]
     fn invalid_laplace() {
         Laplace::new(-1.0, 0.0);
+    }
+
+    #[test]
+    fn degenerate() {
+        let location = 100.0;
+        let d = Laplace::new(0.0, location);
+        let mut rng = StepRng::new(0,1);
+        for _ in 0..1000 {
+            let x = d.sample(&mut rng);
+            println!("x:{}", x);
+            assert_eq!(x, location);
+        }
     }
 
     #[test]
