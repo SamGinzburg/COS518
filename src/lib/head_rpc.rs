@@ -101,7 +101,7 @@ impl self::Service for HeadServer {
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {
         blocking(|| {
-            let mut m_vec = BACKWARDS_MESSAGES.lock();
+            let m_vec = BACKWARDS_MESSAGES.lock();
             let mut b_msgs = match m_vec {
                 Err(e) => e.into_inner(),
                 Ok(a)  => a

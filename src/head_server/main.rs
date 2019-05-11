@@ -75,6 +75,11 @@ lazy_static! {
                             .long("variance")
                             .help("Specifies the variance of the noise distribution, for differential privacy")
                             .takes_value(true))
+                        .arg(Arg::with_name("roundtime")
+                            .short("r")
+                            .long("roundtime")
+                            .help("Specifies the time between rounds in seconds")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("0").clone());
@@ -82,7 +87,9 @@ lazy_static! {
         let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
         let micro = String::from(matches.value_of("micro").unwrap_or("10").clone());
         let b = String::from(matches.value_of("variance").unwrap_or("0").clone());
+        let rt = String::from(matches.value_of("roundtime").unwrap_or("2").clone());
 
+        m.insert(String::from("roundtime"), rt);
         m.insert(String::from("variance"), b);
         m.insert(String::from("server_id"), server_uid);
         m.insert(String::from("server_ip"), server_ip);
@@ -132,6 +139,12 @@ fn main() {
 
     // start fetching data from server once GUI is initialized
     let handler2 = thread::Builder::new().name("round_thread".to_string()).spawn(move || {
+        let roundtime: u64 = match HASHMAP.get(&String::from("roundtime")) {
+            // param was passed
+            Some(x) => x.parse::<u64>().unwrap(),
+            // no param!
+            None => panic!("No input provided for the micro flag!"),
+        };
         loop {
             {
                 let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
@@ -146,7 +159,7 @@ fn main() {
                 *unwrapped_backwards = vec![];
             }
             // wait until round ends
-            thread::sleep(time::Duration::from_millis(2000));
+            thread::sleep(time::Duration::from_secs(roundtime));
 
             // start timing the round
             let now = Instant::now();
