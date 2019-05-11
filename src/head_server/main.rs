@@ -138,12 +138,11 @@ fn main() {
                 *p_backwards_msgs_m_vec = vec![];
 
                 // reset the 'messages received' buffer at the start of each round
-                let mut p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+                let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
                 let mut unwrapped_backwards = match p_backwards_m_vec {
                     Err(e) => e.into_inner(),
                     Ok(a)  => a
                 };
-
                 *unwrapped_backwards = vec![];
             }
             // wait until round ends

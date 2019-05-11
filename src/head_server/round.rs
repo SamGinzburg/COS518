@@ -8,6 +8,8 @@ use std::io;
 use std::net::{IpAddr, SocketAddr};
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
+use std::cmp::min;
+
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::head_rpc::{
     BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, PROCESSED_BACKWARDS_MESSAGES, REMOTE_ROUND_ENDED,
@@ -111,15 +113,15 @@ pub async fn send_m_vec(
     let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
     let transport = await!(connect(&s_addr)).unwrap();
     let mut client = await!(new_stub(client::Config::default(), transport)).unwrap();
-    // divide the m_vec into evenly sized chunks
-    let chunk_count = m_vec.len();
-    let m_vec_clone = m_vec.clone();
+    // compute how many chunks we can make
     let now = Instant::now();
-    for count in 0..chunk_count {
-        let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
-        //println!("sending msgs");
+    let mut m_vec_clone = m_vec.clone();
+    while m_vec_clone.len() > 0 {
+        let chunk_size = min(1024, m_vec_clone.len());
+        let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs, true)).unwrap();
     }
+
     println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((s, m_vec))

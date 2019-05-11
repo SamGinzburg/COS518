@@ -13,6 +13,7 @@ use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
 use std::time::Instant;
+use std::cmp::min;
 
 // TODO: need to find a way to dynamically switch which new_stub we use
 // depending on flags passed in. Probably by passing down a flag and conditionally
@@ -146,12 +147,13 @@ pub async fn send_m_vec(
     let s_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
     let transport = await!(connect(&s_addr)).unwrap();
     let mut client = await!(next_server_new_stub(client::Config::default(), transport)).unwrap();
+
     // divide the m_vec into evenly sized chunks
-    let chunk_count = m_vec.len();
-    let m_vec_clone = m_vec.clone();
     let now = Instant::now();
-    for count in 0..chunk_count {
-        let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
+    let mut m_vec_clone = m_vec.clone();
+    while m_vec_clone.len() > 0 {
+        let chunk_size = min(1024, m_vec_clone.len());
+        let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs)).unwrap();
     }
     println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
@@ -213,15 +215,11 @@ pub async fn backwards_send_msg(
     let mut client = await!(prev_server_new_stub(client::Config::default(), transport)).unwrap();
 
     // send all the messages
-    let chunk_count = m_vec.len();
-    println!("{}", chunk_count);
-    let m_vec_clone = m_vec.clone();
-
     let now = Instant::now();
-    for count in 0..chunk_count {
-        //println!("sending message backwards!");
-        let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
-        //println!("msg len: {:?}", msgs[0].len());
+    let mut m_vec_clone = m_vec.clone();
+    while m_vec_clone.len() > 0 {
+        let chunk_size = min(1024, m_vec_clone.len());
+        let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs)).unwrap();
     }
     println!("NETWORK FORWARD TO HEAD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
