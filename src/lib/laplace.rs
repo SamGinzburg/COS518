@@ -22,7 +22,7 @@ impl Laplace {
     ///
     /// `scale` must be positive.
     pub fn new(scale: f64, location: f64) -> Laplace {
-        assert!((scale > 0.)x);
+        assert!((scale >= 0.)x);
         Laplace { scale, location }
     }
 }
