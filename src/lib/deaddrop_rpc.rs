@@ -53,9 +53,9 @@ pub async fn end_round(server_addr: String, port: u16) -> io::Result<()> {
     Ok(())
 }
 
-pub async fn forward_fn(micro: f64, m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<onion::Message>)> {
+pub async fn forward_fn(scale: f64, micro: f64, m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<onion::Message>)> {
     println!("forwarding...");
-    let n = Laplace::new(1.0, micro);
+    let n = Laplace::new(scale, micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     let key_vec = vec![];
     let (server_priv_key, _) = match get_keypair(PartyType::Server.with_id(2)) {
@@ -115,6 +115,7 @@ service! {
 #[derive(Clone, Copy, Debug)]
 pub struct DeadDropServer {
     pub micro: f64,
+    pub scale: f64,
 }
 
 impl self::Service for DeadDropServer {
@@ -129,7 +130,7 @@ impl self::Service for DeadDropServer {
             let m_vec = MESSAGES.lock().unwrap();
             let m_vec_copy = m_vec.to_vec();
             drop(m_vec);
-            let fwd = forward_fn(self.micro, m_vec_copy);
+            let fwd = forward_fn(self.scale, self.micro, m_vec_copy);
             let dd = fwd.and_then(|(s, m)| dead_drop_fn(s, m));
             let bwd = dd.and_then(|(s, m)| backwards_fn(s, m));
             let send = bwd.and_then(|v| send_m_vec(v, "127.0.0.1".to_string(), 8081));

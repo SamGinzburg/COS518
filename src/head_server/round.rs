@@ -36,8 +36,15 @@ pub async fn round_status_check(
         None => panic!("No input provided for the micro flag!"),
     };
 
+    let scale: f64 = match HASHMAP.get(&String::from("variance")) {
+        // param was passed
+        Some(x) => x.parse::<f64>().unwrap(),
+        // no param!
+        None => panic!("No input provided for the micro flag!"),
+    };
+
     // permute the messages *before* proceeding further
-    let n = Laplace::new(1.0, micro);
+    let n = Laplace::new(scale, micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     // read in the next two server pub keys
     let mut key_vec = vec![];

@@ -70,13 +70,20 @@ lazy_static! {
                             .long("micro")
                             .help("Specifies the value of μ, for differential privacy")
                             .takes_value(true))
+                        .arg(Arg::with_name("variance")
+                            .short("b")
+                            .long("variance")
+                            .help("Specifies the variance of the noise distribution, for differential privacy")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("0").clone());
         let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
         let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
         let micro = String::from(matches.value_of("micro").unwrap_or("10").clone());
+        let b = String::from(matches.value_of("variance").unwrap_or("0").clone());
 
+        m.insert(String::from("variance"), b);
         m.insert(String::from("server_id"), server_uid);
         m.insert(String::from("server_ip"), server_ip);
         m.insert(String::from("server_port"), server_port);
