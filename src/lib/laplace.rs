@@ -79,7 +79,7 @@ mod test {
     #[test]
     #[should_panic]
     fn invalid_laplace() {
-        Laplace::new(0., 0.);
+        Laplace::new(-1.0, 0.0);
     }
 
     #[test]

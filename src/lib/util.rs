@@ -2,6 +2,7 @@ use crate::message;
 use crate::onion;
 use crate::permute::Permutation;
 use crate::rand::distributions::Distribution;
+use crate::rayon::prelude::*;
 
 use std::collections::HashMap;
 
@@ -18,60 +19,73 @@ pub struct State {
     n: usize,
 }
 
-// straight-forward implementation; could be optimized
 pub fn forward<D>(
     input: Vec<onion::Message>,
     settings: &Settings<D>,
 ) -> (State, Vec<onion::Message>)
 where
-    D: Distribution<u32>,
+    D: Distribution<u32> + Sync
 {
     let mut rng = rand::thread_rng();
     let n = input.len();
 
     // unwrap, decrypt, and store keys
-    let mut keys: Vec<onion::DerivedKey> = Vec::with_capacity(n);
-    let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
+    let mut keys : Vec<onion::DerivedKey> = Vec::with_capacity(n);
+    let mut inners : Vec<onion::Message> = Vec::with_capacity(n);
 
-    for wrapped in input {
-        let (pk, cipher) = message::unwrap(&wrapped);
-        let dk = onion::derive(&settings.sk, &pk);
-        let inner = match onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward) {
-            Ok(m) => m,
+    let unwrapped = input
+        .par_iter()
+        .map(|wrapped| {
+            let (pk, cipher) = message::unwrap(&wrapped);
+            let dk = onion::derive(&settings.sk, &pk);
+            let inner = match onion::decrypt(&dk, cipher, onion::EncryptionPurpose::Forward) {
+                Ok(m) => m,
 
-            // for security, replace bad messages with fakes
-            Err(()) => message::blank(&message::Deaddrop::sample())
-        };
+                // for security, replace bad messages with fakes
+                Err(()) => message::blank(&message::Deaddrop::sample())
+            };
 
-        keys.push(dk);
-        inners.push(inner);
-    }
+            (dk, inner) })
+        .unzip_into_vecs(&mut keys, &mut inners);
 
     // add noise
     let n1 = settings.noise.sample(&mut rng);
     let n2 = settings.noise.sample(&mut rng) / 2;
 
     let adding = (n1 + 2 * n2) as usize;
-    inners.reserve(adding);
     let m = n + adding;
 
-    for _i in 0..n1 {
-        let m = message::blank(&message::Deaddrop::sample());
-        let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
-        inners.push(wrapped);
-    }
-
-    for _i in 0..n2 {
-        for _j in 0..2 {
+    let noise1 = (0..n1)
+        .into_par_iter()
+        .map(|_| {
             let m = message::blank(&message::Deaddrop::sample());
             let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
-            inners.push(wrapped);
-        }
-    }
+            wrapped
+        });
+
+    let noise2 = (0..n2)
+        .into_par_iter()
+        .flat_map(|_| {
+            let r : Vec<onion::Message> = (0..2)
+                .into_iter()
+                .map(|__| {
+                    let m = message::blank(&message::Deaddrop::sample());
+                    let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
+                    wrapped
+                })
+                .collect();
+            r
+        });
+    
+    let all : Vec<onion::Message> = inners
+        .into_par_iter()
+        .chain(noise1)
+        .chain(noise2)
+        .collect();
 
     // permute
     let permutation = Permutation::sample(m);
-    let output: Vec<onion::Message> = permutation.apply(inners);
+    let output: Vec<onion::Message> = permutation.apply(all);
 
     (
         State {
@@ -88,13 +102,13 @@ pub fn backward(state: State, input: Vec<onion::Message>) -> Vec<onion::Message>
     let mut unpermuted = state.permutation.inverse().apply(input);
 
     // re-encrypt
-    let mut ciphers: Vec<onion::Message> = Vec::with_capacity(state.n);
-    for (m, dk) in unpermuted.drain(..).zip(state.keys.iter()) {
-        let c = onion::encrypt(dk, m, onion::EncryptionPurpose::Backward);
-        ciphers.push(c);
-    }
-
-    ciphers
+    unpermuted
+        .into_par_iter()
+        .zip(state.keys.par_iter())
+        .map(|(m, dk)| {
+            onion::encrypt(dk, m, onion::EncryptionPurpose::Backward)
+        })
+        .collect()
 }
 
 enum DeaddropState {
