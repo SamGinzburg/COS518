@@ -23,16 +23,15 @@ extern crate tokio;
 use clap::{App, Arg};
 use std::collections::HashMap;
 
-use crate::fetch::rpc_get;
 use crate::send::rpc_put;
 use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::TryFutureExt;
-use std::{thread, time};
+use std::{thread};
 use tokio_threadpool::ThreadPool;
 use std::io;
 use sharedlib::keys::{get, get_keypair, PartyType};
-use sharedlib::onion::{derive, PublicKey, PrivateKey, DerivedKey, KeyPair};
+use sharedlib::onion::{PublicKey, PrivateKey, DerivedKey};
 pub mod fetch;
 pub mod send;
 
@@ -111,7 +110,7 @@ lazy_static! {
         get(PartyType::Client.with_id(remote_uid)).unwrap()
     };
 
-    static ref MY_PRIV_KEY: DerivedKey = { 
+    static ref MY_PRIV_KEY: PrivateKey = { 
         let uid = HASHMAP
             .get(&String::from("uid"))
             .unwrap()

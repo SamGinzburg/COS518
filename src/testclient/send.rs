@@ -1,6 +1,6 @@
 use sharedlib::client_util::wrap;
 use sharedlib::head_rpc::new_stub;
-use sharedlib::onion::{derive, PublicKey, PrivateKey, DerivedKey};
+use sharedlib::onion::{derive};
 use sharedlib::keys::{get, get_keypair, PartyType};
 
 use std::io;
@@ -9,9 +9,8 @@ use std::string::String;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
 use std::time::Instant;
-use futures::future::lazy;
 
-use crate::{server_pub_keys, remote_pub_key, MY_PRIV_KEY};
+use crate::{server_pub_keys, MY_PRIV_KEY};
 
 pub async fn rpc_put(
     server_addr: String,
