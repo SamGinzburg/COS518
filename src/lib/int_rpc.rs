@@ -68,6 +68,7 @@ pub struct IntermediateServer {
     pub prev_server_port: u16,
     pub forward_arg: bool,
     pub micro: f64,
+    pub scale: f64
 }
 
 /*
@@ -88,7 +89,7 @@ pub async fn round_status_check(
 ) -> io::Result<(State, Vec<onion::Message>)> {
     println!("round_status_check");
     // permute the messages *before* proceeding further
-    let n = Laplace::new(1.0, is.micro);
+    let n = Laplace::new(is.scale, is.micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));
     // read in the next server pub keys
     let mut key_vec = vec![];

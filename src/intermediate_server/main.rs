@@ -81,6 +81,11 @@ lazy_static! {
                             .long("micro")
                             .help("Specifies the value of μ, for differential privacy")
                             .takes_value(true))
+                        .arg(Arg::with_name("variance")
+                            .short("b")
+                            .long("variance")
+                            .help("Specifies the variance of the noise distribution, for differential privacy")
+                            .takes_value(true))
                         .get_matches();
 
         let server_uid = String::from(matches.value_of("server_id").unwrap_or("1").clone());
@@ -91,7 +96,9 @@ lazy_static! {
         let prev_server_ip = String::from(matches.value_of("prevaddr").unwrap_or("127.0.0.1").clone());
         let prev_server_port = String::from(matches.value_of("prevport").unwrap_or("8080").clone());
         let micro = String::from(matches.value_of("micro").unwrap_or("10").clone());
+        let b = String::from(matches.value_of("variance").unwrap_or("0").clone());
 
+        m.insert(String::from("variance"), b);
         m.insert(String::from("micro"), micro);
         m.insert(String::from("server_id"), server_uid);
         m.insert(String::from("server_ip"), server_ip);
@@ -141,6 +148,13 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
         None => panic!("No input provided for the micro flag!"),
     };
 
+    let scale: f64 = match HASHMAP.get(&String::from("variance")) {
+        // param was passed
+        Some(x) => x.parse::<f64>().unwrap(),
+        // no param!
+        None => panic!("No input provided for the micro flag!"),
+    };
+
     // The server is configured with the defaults.
     let server = server::new(server::Config::default())
         // Server can listen on any type that implements the Transport trait.
@@ -154,6 +168,7 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
             prev_server_ip: prevaddr,
             prev_server_port: prevport,
             micro: micro,
+            scale: scale,
             forward_arg: false,
         }));
 
