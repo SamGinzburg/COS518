@@ -28,6 +28,10 @@ path = "src/deaddrop_server/main.rs"
 name = "client"
 path = "src/client/main.rs"
 
+[[bin]]
+name = "testclient"
+path = "src/testclient/main.rs"
+
 [dependencies]
 clap = "2.32.0"
 cursive = "0.11"
@@ -43,4 +47,3 @@ futures-await-async-macro = "0.1.4"
 tokio-async-await = "0.1.0"
 tokio-threadpool = "0.1.14"
 byteorder = "1.3.1"
-

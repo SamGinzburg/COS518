@@ -6,6 +6,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use tarpc::context;
 use tarpc::futures::future::Ready;
 use tarpc::futures::*;
+use tokio_threadpool::blocking;
+use std::sync::atomic::AtomicUsize;
 
 lazy_static! {
     // a list of messages, protected by a global lock
@@ -20,6 +22,9 @@ lazy_static! {
     // used to block until the round ends
     pub static ref LOCAL_ROUND_ENDED: Arc<(Mutex<bool>, Condvar)> =
                         Arc::new((Mutex::new(false), Condvar::new()));
+    // block until we finish replying to everyone
+    pub static ref REQUEST_RESPONSE_BLOCK: Arc<(Mutex<AtomicUsize>, Condvar)> =
+                        Arc::new((Mutex::new(AtomicUsize::new(0)), Condvar::new()));
     pub static ref ROUND_NUM: Mutex<u32> = Mutex::new(0);
 }
 
@@ -51,29 +56,61 @@ impl self::Service for HeadServer {
             msg_count = m_vec.len();
             m_vec.push(s.clone());
         }
-        println!("DEBUG: incoming msg len: {:?}", s.clone().len());
+        //println!("DEBUG: incoming msg len: {:?}", s.clone().len());
 
         // block until the current round ends, send back round reply
-        let &(ref b, ref cvar) = &*LOCAL_ROUND_ENDED.clone();
-        let mut flag = b.lock().unwrap();
-        while !*flag {
-            flag = cvar.wait(flag).unwrap();
-        }
 
-        let msg_vec = PROCESSED_BACKWARDS_MESSAGES.lock().unwrap();
-        println!(
+        blocking(|| {
+            let &(ref b, ref cvar) = &*LOCAL_ROUND_ENDED.clone();
+            let mut flag = b.lock().unwrap();
+            while !*flag {
+                let (f, _) = cvar.wait_timeout_ms(flag, 200).unwrap();
+                flag = f;
+                //println!("waiting for end of round: count: {:?}", flag);
+            }
+        })
+        .map_err(|_| {
+            println!("unable to block!"); panic!("the threadpool shut down")
+        })
+        .unwrap();
+
+        let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
+        let msg_vec = match temp {
+            Err(e) => e.into_inner(),
+            Ok(o)  => o
+        };
+
+        /*println!(
             "DEBUG: Retrieving msg#: {}, total msg count#: {}",
             msg_count,
             msg_vec.len()
-        );
-        println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
+        );*/
+
+        let tuple = REQUEST_RESPONSE_BLOCK.clone();
+        let &(ref b, ref cvar) = &*tuple;
+        let mut flag = match b.lock() {
+            Err(e) => e.into_inner(),
+            Ok(o)  => o
+        };
+        *flag.get_mut() += 1;
+        cvar.notify_one();
+
+        //println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {
-        let mut m_vec = BACKWARDS_MESSAGES.lock().unwrap();
-        m_vec.extend(v.clone());
-        println!("received messages from next server# = {}", m_vec.len());
+        blocking(|| {
+            let mut m_vec = BACKWARDS_MESSAGES.lock();
+            let mut b_msgs = match m_vec {
+                Err(e) => e.into_inner(),
+                Ok(a)  => a
+            };
+            b_msgs.extend(v.clone());
+            //println!("received messages from next server# = {}", b_msgs.len());
+        })
+        .map_err(|_| panic!("the threadpool shut down"))
+        .unwrap();
         future::ready(true)
     }
 
