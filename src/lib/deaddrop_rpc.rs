@@ -16,6 +16,7 @@ use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
 use std::time::Instant;
+use std::cmp::min;
 
 lazy_static! {
     pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
@@ -32,10 +33,10 @@ pub async fn send_m_vec(
     let transport = await!(connect(&s_addr)).unwrap();
     let mut client = await!(prev_server_stub(client::Config::default(), transport)).unwrap();
     // divide the m_vec into evenly sized chunks
-    let chunk_count = m_vec.len();
-    let m_vec_clone = m_vec.clone();
-    for count in 0..chunk_count {
-        let msgs = m_vec_clone.get(count..count + 1).unwrap().to_vec();
+    let mut m_vec_clone = m_vec.clone();
+    while m_vec_clone.len() > 0 {
+        let chunk_size = min(1024, m_vec_clone.len());
+        let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs, false)).unwrap();
     }
 

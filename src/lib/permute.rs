@@ -1,6 +1,7 @@
 use crate::rand::prelude::SliceRandom;
 
 use std::iter;
+use std::time::Instant;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Permutation {
@@ -9,20 +10,25 @@ pub struct Permutation {
 
 impl Permutation {
     pub fn sample(m: usize) -> Permutation {
+        let now = Instant::now();
         let mut map: Vec<usize> = (0..m).collect();
         map.shuffle(&mut rand::thread_rng());
+        println!("Sample took (ms): {}", now.elapsed().as_millis());
         Permutation { map }
     }
 
     pub fn inverse(&self) -> Permutation {
+        let now = Instant::now();
         let mut map: Vec<usize> = iter::repeat(0).take(self.map.len()).collect();
         for (i, j) in self.map.iter().enumerate() {
             map[*j] = i;
         }
+        println!("Inverse took (ms): {}", now.elapsed().as_millis());
         Permutation { map }
     }
 
     pub fn apply<T>(&self, input: Vec<T>) -> Vec<T> {
+        let now = Instant::now();
         let mut tmp: Vec<Option<T>> = Vec::with_capacity(input.len());
         for x in input {
             tmp.push(Some(x));
@@ -33,7 +39,7 @@ impl Permutation {
             tmp.push(None);
             output.push(tmp.swap_remove(*i).unwrap());
         }
-
+        println!("Apply took (ms): {}", now.elapsed().as_millis());
         output
     }
 
