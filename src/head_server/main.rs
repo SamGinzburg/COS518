@@ -147,6 +147,8 @@ fn main() {
         };
         loop {
             {
+                let mut m_vec = MESSAGES.lock().unwrap();
+                *m_vec = vec![];
                 let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
                 *p_backwards_msgs_m_vec = vec![];
 
@@ -190,25 +192,30 @@ fn main() {
                     .compat(),
             );
 
+            let almost = block_on_replies();
+            let finally = almost.and_then(move |_| async {
+                // empty our message buffer for the next round
+                // cleanup end round cvar
+                let tuple = LOCAL_ROUND_ENDED.clone();
+                let &(ref b, _) = &*tuple;
+                let mut flag = b.lock().unwrap();
+                *flag = false;
+                // cleanup response handling
+                let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
+                let mut flag = b.lock().unwrap();
+                *(flag.get_mut()) = 0;
+                Ok(())
+            });
+
             tokio::run(
-                (block_on_replies())
+                ((finally))
                     .map_err(|e| eprintln!("Fetch Error: {}", e))
                     .boxed()
                     .compat(),
             );
 
-            // empty our message buffer for the next round
-            *m_vec = vec![];
-            // cleanup end round cvar
-            let tuple = LOCAL_ROUND_ENDED.clone();
-            let &(ref b, _) = &*tuple;
-            let mut flag = b.lock().unwrap();
-            *flag = false;
-            // cleanup response handling
-            let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
-            let mut flag = b.lock().unwrap();
-            *(flag.get_mut()) = 0;
             println!("ROUND TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+
         }
     }).unwrap();
 

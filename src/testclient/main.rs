@@ -28,15 +28,22 @@ use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::TryFutureExt;
 use std::{thread};
-use tokio_threadpool::ThreadPool;
 use std::io;
 use sharedlib::keys::{get, get_keypair, PartyType};
 use sharedlib::onion::{PublicKey, PrivateKey, DerivedKey};
+use std::time::Duration;
+use std::sync::{Arc, Condvar, Mutex};
+use std::sync::atomic::AtomicUsize;
+
+use tokio::executor::thread_pool;
+use tokio::executor::thread_pool::Builder;
+
 pub mod fetch;
 pub mod send;
 
 lazy_static! {
-    static ref POOL: ThreadPool = { ThreadPool::new() };
+    pub static ref BLOCK: Arc<(Mutex<AtomicUsize>, Condvar)> =
+                        Arc::new((Mutex::new(AtomicUsize::new(0)), Condvar::new()));
 
     // quick hack to get args into callback function without modifying the
     // cursive lib / making a custom UI object
@@ -162,26 +169,32 @@ pub async fn spawn_many(
 
 fn main() {
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
-
-
     let mut threads = vec![];
     // parallel threads
-    for x in 0..50 {
-        let handler = thread::spawn(move || {
-            // remote uid being dialed in the round
-            for y in 1..10 {
-                tokio::run(
-                        spawn_many(x, y)
-                        .map_err(|e| eprintln!("RPC Error: {}", e))
-                        .boxed()
-                        .compat(),
-                );
+    for x in 0..1 {
+            for y in 1..1000 {
+                let handler = thread::spawn(move || {
+                    tokio::run(
+                            spawn_many(x, y)
+                            .map_err(|e| eprintln!("RPC Error: {}", e))
+                            .boxed()
+                            .compat(),
+                    );
+                });
+                threads.push(handler);
             }
-        });
-        threads.push(handler);
     }
+
+    /*
+    let &(ref b, ref cvar) = &*BLOCK.clone();
+    let mut flag = b.lock().unwrap();
+    println!("Flag: {:?}, len: {:?}", *flag, 500);
+    while *(flag.get_mut()) != 500 {
+        flag = cvar.wait(flag).unwrap();
+    }
+    */
     for x in threads {
-        x.join().unwrap();
+        x.join();
     }
-    //handler.join().unwrap();
+    //thread_pool.shutdown_on_idle();
 }

@@ -74,18 +74,6 @@ impl self::Service for HeadServer {
         })
         .unwrap();
 
-        let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
-        let msg_vec = match temp {
-            Err(e) => e.into_inner(),
-            Ok(o)  => o
-        };
-
-        /*println!(
-            "DEBUG: Retrieving msg#: {}, total msg count#: {}",
-            msg_count,
-            msg_vec.len()
-        );*/
-
         let tuple = REQUEST_RESPONSE_BLOCK.clone();
         let &(ref b, ref cvar) = &*tuple;
         let mut flag = match b.lock() {
@@ -95,6 +83,12 @@ impl self::Service for HeadServer {
         *flag.get_mut() += 1;
         cvar.notify_one();
 
+        let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
+        let msg_vec = match temp {
+            Err(e) => e.into_inner(),
+            Ok(o)  => o
+        };
+    
         //println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
