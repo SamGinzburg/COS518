@@ -94,22 +94,22 @@ impl self::Service for HeadServer {
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {
-        blocking(|| {
-            let m_vec = BACKWARDS_MESSAGES.lock();
-            let mut b_msgs = match m_vec {
-                Err(e) => e.into_inner(),
-                Ok(a)  => a
-            };
-            b_msgs.extend(v.clone());
-            //println!("received messages from next server# = {}", b_msgs.len());
-        })
+        /*blocking(|| {*/
+        let m_vec = BACKWARDS_MESSAGES.lock();
+        let mut b_msgs = match m_vec {
+            Err(e) => e.into_inner(),
+            Ok(a)  => a
+        };
+        b_msgs.extend(v.clone());
+        //println!("received messages from next server# = {}", b_msgs.len());
+        /*})
         .map_err(|_| panic!("the threadpool shut down"))
-        .unwrap();
+        .unwrap();*/
         future::ready(true)
     }
 
     fn EndRound(self, _: context::Context) -> Self::EndRoundFut {
-        println!("round end called by next server");
+        //println!("round end called by next server");
         let tuple = REMOTE_ROUND_ENDED.clone();
         let &(ref b, ref cvar) = &*tuple;
         let mut flag = b.lock().unwrap();

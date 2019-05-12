@@ -21,7 +21,7 @@ pub async fn rpc_put(
     remote_uid: usize,
     thread_id: usize,
 ) -> io::Result<()> {
-    println!("running async");
+    //println!("running async");
     let server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
     let transport = await!(connect(&server_addr)).unwrap();
     let mut client = await!(new_stub(client::Config::default(), transport)).unwrap();

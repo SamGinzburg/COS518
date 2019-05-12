@@ -1,0 +1,120 @@
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 120
+NETWORK FORWARD TIME ELAPSED (ms): 105
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 894
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 116
+NETWORK FORWARD TIME ELAPSED (ms): 103
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 855
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 120
+NETWORK FORWARD TIME ELAPSED (ms): 104
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 857
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 118
+NETWORK FORWARD TIME ELAPSED (ms): 105
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 854
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 119
+NETWORK FORWARD TIME ELAPSED (ms): 104
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 853
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 117
+NETWORK FORWARD TIME ELAPSED (ms): 105
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 859
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 120
+NETWORK FORWARD TIME ELAPSED (ms): 109
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 932
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 133
+NETWORK FORWARD TIME ELAPSED (ms): 115
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 939
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 139
+NETWORK FORWARD TIME ELAPSED (ms): 115
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 932
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 120
+NETWORK FORWARD TIME ELAPSED (ms): 108
+Inverse took (ms): 0
+Apply took (ms): 0
+100
+ROUND TIME ELAPSED (ms): 889
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 114
+NETWORK FORWARD TIME ELAPSED (ms): 88
+Inverse took (ms): 0
+Apply took (ms): 0
+0
+ROUND TIME ELAPSED (ms): 776
+Starting round!!
+m_vec lock acquired!
+Sample took (ms): 0
+Apply took (ms): 0
+FORWARD TIME ELAPSED (ms): 115
+NETWORK FORWARD TIME ELAPSED (ms): 89
+Inverse took (ms): 0
+Apply took (ms): 0
+0
+ROUND TIME ELAPSED (ms): 770

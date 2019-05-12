@@ -38,6 +38,7 @@ use sharedlib::head_rpc::{
 };
 use tarpc::server;
 use std::time::Instant;
+use tokio::runtime::Builder;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the
@@ -119,7 +120,15 @@ async fn run_service(_server_addr: &str, port: u16) -> io::Result<()> {
 }
 
 fn main() {
-    tarpc::init(tokio::executor::DefaultExecutor::current().compat());
+    let mut runtime = Builder::new()
+        .blocking_threads(32768 / 2) // max value allowed / 2
+        .core_threads(16)
+        .name_prefix("rpc-tpool-")
+        .stack_size(3 * 1024 * 1024)
+        .build()
+        .unwrap();
+    tarpc::init(runtime.executor().compat());
+
     let ip = HASHMAP.get(&String::from("server_ip")).unwrap();
     let port = HASHMAP
         .get(&String::from("server_port"))
@@ -128,12 +137,14 @@ fn main() {
         .unwrap();
     
     let handler1 = thread::Builder::new().name("rpc_thread".to_string()).spawn(move || {
+
        tokio::run(
             run_service(ip, port)
                 .map_err(|e| eprintln!("RPC Error: {}", e))
                 .boxed()
                 .compat(),
-        );    
+        );
+
     }).unwrap();
 
 
@@ -168,7 +179,7 @@ fn main() {
 
             // acquire lock on MESSAGES
             println!("Starting round!!");
-            let mut m_vec = MESSAGES.lock().unwrap();
+            let m_vec = MESSAGES.lock().unwrap();
             println!("m_vec lock acquired!");
 
             let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
