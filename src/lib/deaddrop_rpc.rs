@@ -7,16 +7,16 @@ use crate::laplace::{Laplace, TransformedDistribution};
 use crate::onion;
 use crate::util::deaddrop;
 use crate::util::{backward, forward, Settings, State};
+use std::cmp::min;
 use std::net::{IpAddr, SocketAddr};
 use std::str;
 use std::sync::Mutex;
 use std::thread;
+use std::time::Instant;
 use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
-use std::time::Instant;
-use std::cmp::min;
 
 lazy_static! {
     pub static ref MESSAGES: Mutex<Vec<onion::Message>> = Mutex::new(vec![]);
@@ -54,7 +54,11 @@ pub async fn end_round(server_addr: String, port: u16) -> io::Result<()> {
     Ok(())
 }
 
-pub async fn forward_fn(scale: f64, micro: f64, m_vec: Vec<onion::Message>) -> io::Result<(State, Vec<onion::Message>)> {
+pub async fn forward_fn(
+    scale: f64,
+    micro: f64,
+    m_vec: Vec<onion::Message>,
+) -> io::Result<(State, Vec<onion::Message>)> {
     println!("forwarding...");
     let n = Laplace::new(scale, micro);
     let transformed_noise = TransformedDistribution::new(n, |x| u32::max(0, f64::ceil(x) as u32));

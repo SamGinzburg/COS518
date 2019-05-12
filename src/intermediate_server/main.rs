@@ -124,7 +124,10 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
     };
 
     let nextaddr: Ipv4Addr = HASHMAP
-        .get(&String::from("next_server_ip")).unwrap().parse().unwrap();
+        .get(&String::from("next_server_ip"))
+        .unwrap()
+        .parse()
+        .unwrap();
 
     let nextport = HASHMAP
         .get(&String::from("next_server_port"))
@@ -133,7 +136,10 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
         .unwrap();
 
     let prevaddr: Ipv4Addr = HASHMAP
-        .get(&String::from("prev_server_ip")).unwrap().parse().unwrap();
+        .get(&String::from("prev_server_ip"))
+        .unwrap()
+        .parse()
+        .unwrap();
 
     let prevport = HASHMAP
         .get(&String::from("prev_server_port"))
