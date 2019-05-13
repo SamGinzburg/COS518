@@ -1,0 +1,1 @@
+python plot.py mu100_10users.txt mu100_50users.txt mu100_100users.txt mu100_150users.txt mu100_200users.txt mu200_10users.txt mu200_50users.txt mu200_100users.txt mu200_150users.txt mu200_200users.txt mu300_10users.txt mu300_50users.txt mu300_100users.txt mu300_150users.txt mu300_200users.txt

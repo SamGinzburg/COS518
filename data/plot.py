@@ -85,7 +85,10 @@ plt.scatter([200] * len(mu_300_200), mu_300_200, color='red')
 
 plt.legend(loc='upper left')
 plt.xlim([0, 220])
+plt.ylim([0, 1600])
 plt.xlabel('Number of Users')
 plt.ylabel('Latency (ms)')
+plt.title('Latency (ms) vs. Number of Users')
+
 #plt.show()
 plt.savefig('scaling.png')
