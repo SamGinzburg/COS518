@@ -5,6 +5,7 @@ use crate::rand::distributions::Distribution;
 use crate::rayon::prelude::*;
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 pub struct Settings<D: Distribution<u32>> {
     pub other_pks: Vec<onion::PublicKey>,
@@ -33,6 +34,7 @@ where
     let mut keys : Vec<onion::DerivedKey> = Vec::with_capacity(n);
     let mut inners : Vec<onion::Message> = Vec::with_capacity(n);
 
+    let now = Instant::now();
     let unwrapped = input
         .par_iter()
         .map(|wrapped| {
@@ -47,6 +49,7 @@ where
 
             (dk, inner) })
         .unzip_into_vecs(&mut keys, &mut inners);
+    println!("FORWARD DECRYPT TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     // add noise
     let n1 = settings.noise.sample(&mut rng);
@@ -55,6 +58,7 @@ where
     let adding = (n1 + 2 * n2) as usize;
     let m = n + adding;
 
+    let now = Instant::now();
     let noise1 = (0..n1)
         .into_par_iter()
         .map(|_| {
@@ -82,6 +86,7 @@ where
         .chain(noise1)
         .chain(noise2)
         .collect();
+    println!("FORWARD NOISE ADDITION TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     // permute
     let permutation = Permutation::sample(m);
@@ -101,14 +106,18 @@ pub fn backward(state: State, input: Vec<onion::Message>) -> Vec<onion::Message>
     // unpermute
     let mut unpermuted = state.permutation.inverse().apply(input);
 
+    let now = Instant::now();
     // re-encrypt
-    unpermuted
+    let result = unpermuted
         .into_par_iter()
         .zip(state.keys.par_iter())
         .map(|(m, dk)| {
             onion::encrypt(dk, m, onion::EncryptionPurpose::Backward)
         })
-        .collect()
+        .collect();
+
+    println!("BACKWARDS Re-encrypt TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    result
 }
 
 enum DeaddropState {

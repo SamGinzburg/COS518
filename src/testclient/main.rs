@@ -28,15 +28,21 @@ use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::TryFutureExt;
 use std::{thread};
-use tokio_threadpool::ThreadPool;
 use std::io;
 use sharedlib::keys::{get, get_keypair, PartyType};
 use sharedlib::onion::{PublicKey, PrivateKey, DerivedKey};
+use std::time::Duration;
+use std::sync::{Arc, Condvar, Mutex};
+use std::sync::atomic::AtomicUsize;
+
+use tokio::runtime::Builder;
+
 pub mod fetch;
 pub mod send;
 
 lazy_static! {
-    static ref POOL: ThreadPool = { ThreadPool::new() };
+    pub static ref BLOCK: Arc<(Mutex<AtomicUsize>, Condvar)> =
+                        Arc::new((Mutex::new(AtomicUsize::new(0)), Condvar::new()));
 
     // quick hack to get args into callback function without modifying the
     // cursive lib / making a custom UI object
@@ -68,6 +74,11 @@ lazy_static! {
                             .long("port")
                             .help("Specifies the port of the head server in the Vuvuzela chain")
                             .takes_value(true))
+                        .arg(Arg::with_name("connections")
+                            .short("c")
+                            .long("connections")
+                            .help("Specifies how many connections to open per round")
+                            .takes_value(true))
                         .get_matches();
 
         // if these unwraps fail, we must panic!
@@ -84,7 +95,9 @@ lazy_static! {
 
         let server_ip = String::from(matches.value_of("addr").unwrap_or("127.0.0.1").clone());
         let server_port = String::from(matches.value_of("port").unwrap_or("8080").clone());
+        let connections = String::from(matches.value_of("connections").unwrap_or("10").clone());
 
+        m.insert(String::from("connections"), connections);
         m.insert(String::from("server_ip"), server_ip);
         m.insert(String::from("server_port"), server_port);
         m.insert(String::from("uid"), uid);
@@ -161,27 +174,40 @@ pub async fn spawn_many(
 }
 
 fn main() {
-    tarpc::init(tokio::executor::DefaultExecutor::current().compat());
+    let mut runtime = Builder::new()
+        .blocking_threads(4096)
+        .core_threads(4)
+        .name_prefix("rpc-tpool-")
+        .stack_size(3 * 1024 * 1024)
+        .keep_alive(Some(Duration::from_secs(1000)))
+        .build()
+        .unwrap();
+    tarpc::init(runtime.executor().compat());
 
+    let connections = HASHMAP
+                        .get(&String::from("connections"))
+                        .unwrap()
+                        .parse::<usize>()
+                        .unwrap();
 
     let mut threads = vec![];
     // parallel threads
-    for x in 0..50 {
-        let handler = thread::spawn(move || {
-            // remote uid being dialed in the round
-            for y in 1..10 {
+    for x in 0..10 {
+        println!("spawning #: {} threads/connections", connections);
+        for y in 1..(connections+1) {
+            let handler = thread::spawn(move || {
                 tokio::run(
                         spawn_many(x, y)
                         .map_err(|e| eprintln!("RPC Error: {}", e))
                         .boxed()
                         .compat(),
                 );
-            }
-        });
-        threads.push(handler);
+            });
+            threads.push(handler);
+        }
+        for x in threads {
+            x.join().unwrap();
+        }
+        threads = vec![];
     }
-    for x in threads {
-        x.join().unwrap();
-    }
-    //handler.join().unwrap();
 }

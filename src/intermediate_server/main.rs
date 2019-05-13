@@ -27,6 +27,7 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::thread;
 use tarpc::server;
+use tokio::runtime::Builder;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the
@@ -178,7 +179,14 @@ async fn run_service(server_addr: &str, port: u16) -> io::Result<()> {
 }
 
 fn main() {
-    tarpc::init(tokio::executor::DefaultExecutor::current().compat());
+    let mut runtime = Builder::new()
+        .blocking_threads(4096)
+        .core_threads(4)
+        .name_prefix("rpc-tpool-")
+        .stack_size(3 * 1024 * 1024)
+        .build()
+        .unwrap();
+    tarpc::init(runtime.executor().compat());
 
     let ip = HASHMAP.get(&String::from("server_ip")).unwrap();
     let port = HASHMAP

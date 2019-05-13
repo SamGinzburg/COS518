@@ -74,18 +74,6 @@ impl self::Service for HeadServer {
         })
         .unwrap();
 
-        let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
-        let msg_vec = match temp {
-            Err(e) => e.into_inner(),
-            Ok(o)  => o
-        };
-
-        /*println!(
-            "DEBUG: Retrieving msg#: {}, total msg count#: {}",
-            msg_count,
-            msg_vec.len()
-        );*/
-
         let tuple = REQUEST_RESPONSE_BLOCK.clone();
         let &(ref b, ref cvar) = &*tuple;
         let mut flag = match b.lock() {
@@ -95,27 +83,33 @@ impl self::Service for HeadServer {
         *flag.get_mut() += 1;
         cvar.notify_one();
 
+        let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
+        let msg_vec = match temp {
+            Err(e) => e.into_inner(),
+            Ok(o)  => o
+        };
+    
         //println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
 
     fn SendMessages(self, _: context::Context, v: Vec<onion::Message>) -> Self::SendMessagesFut {
-        blocking(|| {
-            let m_vec = BACKWARDS_MESSAGES.lock();
-            let mut b_msgs = match m_vec {
-                Err(e) => e.into_inner(),
-                Ok(a)  => a
-            };
-            b_msgs.extend(v.clone());
-            //println!("received messages from next server# = {}", b_msgs.len());
-        })
+        /*blocking(|| {*/
+        let m_vec = BACKWARDS_MESSAGES.lock();
+        let mut b_msgs = match m_vec {
+            Err(e) => e.into_inner(),
+            Ok(a)  => a
+        };
+        b_msgs.extend(v.clone());
+        //println!("received messages from next server# = {}", b_msgs.len());
+        /*})
         .map_err(|_| panic!("the threadpool shut down"))
-        .unwrap();
+        .unwrap();*/
         future::ready(true)
     }
 
     fn EndRound(self, _: context::Context) -> Self::EndRoundFut {
-        println!("round end called by next server");
+        //println!("round end called by next server");
         let tuple = REMOTE_ROUND_ENDED.clone();
         let &(ref b, ref cvar) = &*tuple;
         let mut flag = b.lock().unwrap();

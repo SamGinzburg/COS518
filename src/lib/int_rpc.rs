@@ -183,7 +183,10 @@ pub async fn cleanup(
     _port: u16,
 ) -> io::Result<Vec<onion::Message>> {
     // unshuffle the permutations
-    Ok(backward(s, m_vec))
+    let now = Instant::now();
+    let back = backward(s, m_vec);
+    println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    Ok(back)
 }
 
 // send messages to previous server finally & finish cleanup
@@ -219,8 +222,16 @@ pub async fn backwards_send_msg(
     let mut m_vec_clone = m_vec.clone();
     while m_vec_clone.len() > 0 {
         let chunk_size = min(1024, m_vec_clone.len());
-        let msgs = m_vec_clone.drain(..chunk_size).collect();
-        await!(client.SendMessages(context::current(), msgs)).unwrap();
+        let msgs: Vec<onion::Message> = m_vec_clone.drain(..chunk_size).collect();
+        match await!(client.SendMessages(context::current(), msgs.clone())) {
+            Err(e) => {
+                println!("err: {}, retrying...", e);
+                // if we die again, that's it
+                await!(client.SendMessages(context::current(), msgs)).unwrap();
+                ()
+            },
+            Ok(o) => (),
+        }
     }
     println!("NETWORK FORWARD TO HEAD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
