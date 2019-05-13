@@ -34,11 +34,13 @@ pub async fn send_m_vec(
     let mut client = await!(prev_server_stub(client::Config::default(), transport)).unwrap();
     // divide the m_vec into evenly sized chunks
     let mut m_vec_clone = m_vec.clone();
+    let now = Instant::now();
     while m_vec_clone.len() > 0 {
         let chunk_size = min(1024, m_vec_clone.len());
         let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs, false)).unwrap();
     }
+    println!("NETWORK RESPONSE TO INT TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok(())
 }

@@ -183,7 +183,10 @@ pub async fn cleanup(
     _port: u16,
 ) -> io::Result<Vec<onion::Message>> {
     // unshuffle the permutations
-    Ok(backward(s, m_vec))
+    let now = Instant::now();
+    let back = backward(s, m_vec);
+    println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    Ok(back)
 }
 
 // send messages to previous server finally & finish cleanup

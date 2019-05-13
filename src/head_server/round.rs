@@ -172,6 +172,7 @@ pub async fn waiting_for_next(s: State) -> io::Result<State> {
 pub async fn cleanup(s: State) -> io::Result<()> {
     /*blocking(|| {*/
         // unshuffle the permutations
+        let now = Instant::now();
         let mut _returning_m_vec = vec![];
         {
             let m_vec = BACKWARDS_MESSAGES.lock();
@@ -180,6 +181,7 @@ pub async fn cleanup(s: State) -> io::Result<()> {
                 Ok(v)  => _returning_m_vec = backward(s, v.clone())
             }
         }
+        println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
         let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
         let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
