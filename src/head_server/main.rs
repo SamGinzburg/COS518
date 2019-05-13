@@ -29,15 +29,15 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::{io, thread, time};
 
 use crate::round::{
-    block_on_replies, cleanup, end_round, round_status_check, send_m_vec, start_round,
-    waiting_for_next,
+    cleanup, end_round, round_status_check, send_m_vec, start_round, waiting_for_next,
+    block_on_replies
 };
 use sharedlib::head_rpc::{
     BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, MESSAGES, PROCESSED_BACKWARDS_MESSAGES,
-    REQUEST_RESPONSE_BLOCK,
+    REQUEST_RESPONSE_BLOCK
 };
-use std::time::Instant;
 use tarpc::server;
+use std::time::Instant;
 
 lazy_static! {
     // quick hack to get args into callback function without modifying the
@@ -126,96 +126,91 @@ fn main() {
         .unwrap()
         .parse::<u16>()
         .unwrap();
+    
+    let handler1 = thread::Builder::new().name("rpc_thread".to_string()).spawn(move || {
+       tokio::run(
+            run_service(ip, port)
+                .map_err(|e| eprintln!("RPC Error: {}", e))
+                .boxed()
+                .compat(),
+        );    
+    }).unwrap();
 
-    let handler1 = thread::Builder::new()
-        .name("rpc_thread".to_string())
-        .spawn(move || {
+
+    // start fetching data from server once GUI is initialized
+    let handler2 = thread::Builder::new().name("round_thread".to_string()).spawn(move || {
+        let roundtime: u64 = match HASHMAP.get(&String::from("roundtime")) {
+            // param was passed
+            Some(x) => x.parse::<u64>().unwrap(),
+            // no param!
+            None => panic!("No input provided for the micro flag!"),
+        };
+        loop {
+            {
+                let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
+                *p_backwards_msgs_m_vec = vec![];
+
+                // reset the 'messages received' buffer at the start of each round
+                let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+                let mut unwrapped_backwards = match p_backwards_m_vec {
+                    Err(e) => e.into_inner(),
+                    Ok(a)  => a
+                };
+                *unwrapped_backwards = vec![];
+            }
+            // wait until round ends
+            thread::sleep(time::Duration::from_secs(roundtime));
+
+            // start timing the round
+            let now = Instant::now();
+
+            // acquire lock on MESSAGES
+            println!("Starting round!!");
+            let mut m_vec = MESSAGES.lock().unwrap();
+            println!("m_vec lock acquired!");
+
+            let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
+            // signal int_server to start round
+            let start_new_round =
+                shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8081));
+            // begin sending messages in batches
+            let send_msgs =
+                start_new_round.and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
+            // signal end of round
+            let end_round =
+                send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
+            let wait = end_round.and_then(|(s, _)| waiting_for_next(s));
+            let almost_done_cleanup = wait.and_then(|s| cleanup(s));
+            //let block_until_replies_done = almost_done_cleanup.and_then(|_| block_on_replies());
+    
             tokio::run(
-                run_service(ip, port)
-                    .map_err(|e| eprintln!("RPC Error: {}", e))
+                (almost_done_cleanup)
+                    .map_err(|e| eprintln!("Fetch Error: {}", e))
                     .boxed()
                     .compat(),
             );
-        })
-        .unwrap();
 
-    // start fetching data from server once GUI is initialized
-    let handler2 = thread::Builder::new()
-        .name("round_thread".to_string())
-        .spawn(move || {
-            let roundtime: u64 = match HASHMAP.get(&String::from("roundtime")) {
-                // param was passed
-                Some(x) => x.parse::<u64>().unwrap(),
-                // no param!
-                None => panic!("No input provided for the micro flag!"),
-            };
-            loop {
-                {
-                    let mut p_backwards_msgs_m_vec = BACKWARDS_MESSAGES.lock().unwrap();
-                    *p_backwards_msgs_m_vec = vec![];
+            tokio::run(
+                (block_on_replies())
+                    .map_err(|e| eprintln!("Fetch Error: {}", e))
+                    .boxed()
+                    .compat(),
+            );
 
-                    // reset the 'messages received' buffer at the start of each round
-                    let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
-                    let mut unwrapped_backwards = match p_backwards_m_vec {
-                        Err(e) => e.into_inner(),
-                        Ok(a) => a,
-                    };
-                    *unwrapped_backwards = vec![];
-                }
-                // wait until round ends
-                thread::sleep(time::Duration::from_secs(roundtime));
-
-                // start timing the round
-                let now = Instant::now();
-
-                // acquire lock on MESSAGES
-                println!("Starting round!!");
-                let mut m_vec = MESSAGES.lock().unwrap();
-                println!("m_vec lock acquired!");
-
-                let shuffle = round_status_check(m_vec.to_vec(), "127.0.0.1".to_string(), 8081);
-                // signal int_server to start round
-                let start_new_round =
-                    shuffle.and_then(|(s, v)| start_round(s, v, "127.0.0.1".to_string(), 8081));
-                // begin sending messages in batches
-                let send_msgs = start_new_round
-                    .and_then(|(s, v)| send_m_vec(s, v, "127.0.0.1".to_string(), 8081));
-                // signal end of round
-                let end_round =
-                    send_msgs.and_then(|(s, v)| end_round(s, v, "127.0.0.1".to_string(), 8081));
-                let wait = end_round.and_then(|(s, _)| waiting_for_next(s));
-                let almost_done_cleanup = wait.and_then(|s| cleanup(s));
-                //let block_until_replies_done = almost_done_cleanup.and_then(|_| block_on_replies());
-
-                tokio::run(
-                    (almost_done_cleanup)
-                        .map_err(|e| eprintln!("Fetch Error: {}", e))
-                        .boxed()
-                        .compat(),
-                );
-
-                tokio::run(
-                    (block_on_replies())
-                        .map_err(|e| eprintln!("Fetch Error: {}", e))
-                        .boxed()
-                        .compat(),
-                );
-
-                // empty our message buffer for the next round
-                *m_vec = vec![];
-                // cleanup end round cvar
-                let tuple = LOCAL_ROUND_ENDED.clone();
-                let &(ref b, _) = &*tuple;
-                let mut flag = b.lock().unwrap();
-                *flag = false;
-                // cleanup response handling
-                let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
-                let mut flag = b.lock().unwrap();
-                *(flag.get_mut()) = 0;
-                println!("ROUND TIME ELAPSED (ms): {}", now.elapsed().as_millis());
-            }
-        })
-        .unwrap();
+            // empty our message buffer for the next round
+            *m_vec = vec![];
+            // cleanup end round cvar
+            let tuple = LOCAL_ROUND_ENDED.clone();
+            let &(ref b, _) = &*tuple;
+            let mut flag = b.lock().unwrap();
+            *flag = false;
+            // cleanup response handling
+            let &(ref b, ref _cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
+            let mut flag = b.lock().unwrap();
+            *(flag.get_mut()) = 0;
+            println!("ROUND TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+        }
+    }).unwrap();
 
     handler2.join().unwrap();
     handler1.join().unwrap();

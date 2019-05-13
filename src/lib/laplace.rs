@@ -87,7 +87,7 @@ mod test {
     fn degenerate() {
         let location = 100.0;
         let d = Laplace::new(0.0, location);
-        let mut rng = StepRng::new(0, 1);
+        let mut rng = StepRng::new(0,1);
         for _ in 0..1000 {
             let x = d.sample(&mut rng);
             println!("x:{}", x);

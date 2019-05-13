@@ -4,20 +4,20 @@ use sharedlib::keys::{get, PartyType};
 use sharedlib::laplace::{Laplace, TransformedDistribution};
 use sharedlib::onion;
 use sharedlib::util::{backward, forward, Settings, State};
-use std::cmp::min;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
+use std::cmp::min;
 
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::head_rpc::{
     BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, PROCESSED_BACKWARDS_MESSAGES, REMOTE_ROUND_ENDED,
-    REQUEST_RESPONSE_BLOCK, ROUND_NUM,
+    ROUND_NUM, REQUEST_RESPONSE_BLOCK
 };
 use sharedlib::int_rpc::new_stub;
-use std::time::Instant;
 use tokio_threadpool::blocking;
+use std::time::Instant;
 
 /*
  * This function is used to periodically end a round,
@@ -122,10 +122,7 @@ pub async fn send_m_vec(
         await!(client.SendMessages(context::current(), msgs, true)).unwrap();
     }
 
-    println!(
-        "NETWORK FORWARD TIME ELAPSED (ms): {}",
-        now.elapsed().as_millis()
-    );
+    println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
     Ok((s, m_vec))
 }
@@ -171,14 +168,14 @@ pub async fn cleanup(s: State) -> io::Result<()> {
         let m_vec = BACKWARDS_MESSAGES.lock();
         match m_vec {
             Err(e) => _returning_m_vec = backward(s, e.into_inner().clone()),
-            Ok(v) => _returning_m_vec = backward(s, v.clone()),
+            Ok(v)  => _returning_m_vec = backward(s, v.clone())
         }
     }
 
     let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
     let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
         Err(e) => e.into_inner(),
-        Ok(v) => v,
+        Ok(v)  => v
     };
     unwrapped_p_backwards_m_vec.extend(_returning_m_vec);
 
@@ -206,20 +203,17 @@ pub async fn cleanup(s: State) -> io::Result<()> {
     Ok(())
 }
 
+
 pub async fn block_on_replies() -> io::Result<()> {
     let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
     let unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
         Err(e) => e.into_inner(),
-        Ok(v) => v,
+        Ok(v)  => v
     };
     blocking(|| {
         let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();
         let mut flag = b.lock().unwrap();
-        println!(
-            "Flag: {:?}, len: {:?}",
-            *flag,
-            unwrapped_p_backwards_m_vec.len()
-        );
+        println!("Flag: {:?}, len: {:?}", *flag, unwrapped_p_backwards_m_vec.len());
         while *(flag.get_mut()) != unwrapped_p_backwards_m_vec.len() {
             flag = cvar.wait(flag).unwrap();
         }

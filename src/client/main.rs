@@ -125,10 +125,16 @@ fn send_message(s: &mut Cursive, message: &str) {
 
     // TODO: set ip/port combo via cli flags
     tokio::run(
-        rpc_put(ip.to_string(), port, input.clone(), uid, remote_uid)
-            .map_err(|e| eprintln!("RPC Error: {}", e))
-            .boxed()
-            .compat(),
+        rpc_put(
+            ip.to_string(),
+            port,
+            input.clone(),
+            uid,
+            remote_uid,
+        )
+        .map_err(|e| eprintln!("RPC Error: {}", e))
+        .boxed()
+        .compat(),
     );
 }
 

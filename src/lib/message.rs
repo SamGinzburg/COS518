@@ -1,5 +1,5 @@
 use crate::byteorder::{BigEndian, ByteOrder};
-use crate::onion::{self, DerivedKey, EncryptionPurpose, Message, PublicKey};
+use crate::onion::{self, EncryptionPurpose, DerivedKey, Message, PublicKey};
 use crate::rand::Rng;
 
 pub const RAW_SIZE: usize = 256;
@@ -117,11 +117,13 @@ mod test {
     }
 
     #[test]
-    fn deaddrop_uses_dk() {}
+    fn deaddrop_uses_dk() {
+    }
 
     #[test]
-    fn deaddrop_uses_info() {}
-
+    fn deaddrop_uses_info() {
+    }
+    
     #[test]
     fn sample_randomized() {
         let drop1 = Deaddrop::sample();
