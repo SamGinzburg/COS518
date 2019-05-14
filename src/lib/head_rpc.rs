@@ -2,12 +2,15 @@
 
 use crate::onion;
 use std::str;
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 use tarpc::context;
 use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tokio_threadpool::blocking;
-use std::sync::atomic::AtomicUsize;
+
+const ROUND_ENDED_CHECK_INTERVAL: Duration = Duration::from_millis(200);
 
 lazy_static! {
     // a list of messages, protected by a global lock
@@ -64,13 +67,14 @@ impl self::Service for HeadServer {
             let &(ref b, ref cvar) = &*LOCAL_ROUND_ENDED.clone();
             let mut flag = b.lock().unwrap();
             while !*flag {
-                let (f, _) = cvar.wait_timeout_ms(flag, 200).unwrap();
+                let (f, _) = cvar.wait_timeout(flag, ROUND_ENDED_CHECK_INTERVAL).unwrap();
                 flag = f;
                 //println!("waiting for end of round: count: {:?}", flag);
             }
         })
         .map_err(|_| {
-            println!("unable to block!"); panic!("the threadpool shut down")
+            println!("unable to block!");
+            panic!("the threadpool shut down")
         })
         .unwrap();
 
@@ -78,7 +82,7 @@ impl self::Service for HeadServer {
         let &(ref b, ref cvar) = &*tuple;
         let mut flag = match b.lock() {
             Err(e) => e.into_inner(),
-            Ok(o)  => o
+            Ok(o) => o,
         };
         *flag.get_mut() += 1;
         cvar.notify_one();
@@ -86,9 +90,9 @@ impl self::Service for HeadServer {
         let temp = PROCESSED_BACKWARDS_MESSAGES.lock();
         let msg_vec = match temp {
             Err(e) => e.into_inner(),
-            Ok(o)  => o
+            Ok(o) => o,
         };
-    
+
         //println!("DEBUG: msg len: {:?}", msg_vec[msg_count].clone().len());
         future::ready(msg_vec[msg_count].clone())
     }
@@ -98,7 +102,7 @@ impl self::Service for HeadServer {
         let m_vec = BACKWARDS_MESSAGES.lock();
         let mut b_msgs = match m_vec {
             Err(e) => e.into_inner(),
-            Ok(a)  => a
+            Ok(a) => a,
         };
         b_msgs.extend(v.clone());
         //println!("received messages from next server# = {}", b_msgs.len());

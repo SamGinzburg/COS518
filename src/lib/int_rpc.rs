@@ -4,16 +4,16 @@ use crate::keys::get_keypair;
 use crate::keys::{get, PartyType};
 use crate::laplace::{Laplace, TransformedDistribution};
 use crate::util::{backward, forward, Settings, State};
+use std::cmp::min;
 use std::io;
-use std::net::{IpAddr, SocketAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
+use std::time::Instant;
 use tarpc::futures::future::Ready;
 use tarpc::futures::*;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
-use std::time::Instant;
-use std::cmp::min;
 
 // TODO: need to find a way to dynamically switch which new_stub we use
 // depending on flags passed in. Probably by passing down a flag and conditionally
@@ -69,7 +69,7 @@ pub struct IntermediateServer {
     pub prev_server_port: u16,
     pub forward_arg: bool,
     pub micro: f64,
-    pub scale: f64
+    pub scale: f64,
 }
 
 /*
@@ -86,7 +86,7 @@ pub async fn round_status_check(
     is: IntermediateServer,
     m_vec: Vec<onion::Message>,
     _server_addr: String,
-    _port: u16
+    _port: u16,
 ) -> io::Result<(State, Vec<onion::Message>)> {
     println!("round_status_check");
     // permute the messages *before* proceeding further
@@ -156,7 +156,10 @@ pub async fn send_m_vec(
         let msgs = m_vec_clone.drain(..chunk_size).collect();
         await!(client.SendMessages(context::current(), msgs)).unwrap();
     }
-    println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    println!(
+        "NETWORK FORWARD TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
 
     Ok((s, m_vec))
 }
@@ -229,11 +232,14 @@ pub async fn backwards_send_msg(
                 // if we die again, that's it
                 await!(client.SendMessages(context::current(), msgs)).unwrap();
                 ()
-            },
-            Ok(o) => (),
+            }
+            Ok(_o) => (),
         }
     }
-    println!("NETWORK FORWARD TO HEAD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    println!(
+        "NETWORK FORWARD TO HEAD TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
 
     // increment round count
     let mut rn = ROUND_NUM.lock().unwrap();
@@ -289,22 +295,24 @@ impl self::Service for IntermediateServer {
 
             let shuffle = round_status_check(self, copy_m_vec, next_ip.to_string(), next_port);
             // signal int_server to start round
-            let start_new_round =
-                shuffle.and_then(move |(s, v)| start_round(s, v, next_ip.to_string(), next_port.clone()));
+            let start_new_round = shuffle
+                .and_then(move |(s, v)| start_round(s, v, next_ip.to_string(), next_port.clone()));
             // begin sending messages in batches
-            let send_msgs =
-                start_new_round.and_then(move |(s, v)| send_m_vec(s, v, next_ip.to_string(), next_port.clone()));
+            let send_msgs = start_new_round
+                .and_then(move |(s, v)| send_m_vec(s, v, next_ip.to_string(), next_port.clone()));
             // signal end of round
-            let end_round =
-                send_msgs.and_then(move |(s, v)| end_round(s, v, next_ip.to_string(), next_port.clone()));
+            let end_round = send_msgs
+                .and_then(move |(s, v)| end_round(s, v, next_ip.to_string(), next_port.clone()));
             let wait = end_round.and_then(|(s, _)| wait_for_reply(s));
-            let backwards_permute =
-                wait.and_then(move |(s, v)| cleanup(s, v, self.prev_server_ip.to_string(), prev_port.clone()));
+            let backwards_permute = wait.and_then(move |(s, v)| {
+                cleanup(s, v, self.prev_server_ip.to_string(), prev_port.clone())
+            });
             // only after the next server is done, can we start sending msgs back
-            let respond = backwards_permute
-                .and_then(move |v| backwards_send_msg(v, self.prev_server_ip.to_string(), prev_port));
-            let end_previous =
-                respond.and_then(move |_| backwards_end_round(self.prev_server_ip.to_string(), prev_port));
+            let respond = backwards_permute.and_then(move |v| {
+                backwards_send_msg(v, self.prev_server_ip.to_string(), prev_port)
+            });
+            let end_previous = respond
+                .and_then(move |_| backwards_end_round(self.prev_server_ip.to_string(), prev_port));
 
             tokio::run(
                 (end_previous)
@@ -326,7 +334,7 @@ impl self::Service for IntermediateServer {
         if is_forward {
             let mut m_vec = MESSAGES.lock().unwrap();
             m_vec.extend(v.clone());
-            //println!("# messages received from prev = {}", m_vec.len());
+        //println!("# messages received from prev = {}", m_vec.len());
         } else {
             let mut m_vec = BACKWARDS_MESSAGES.lock().unwrap();
             m_vec.extend(v.clone());

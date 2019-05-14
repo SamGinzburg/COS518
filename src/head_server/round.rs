@@ -4,20 +4,20 @@ use sharedlib::keys::{get, PartyType};
 use sharedlib::laplace::{Laplace, TransformedDistribution};
 use sharedlib::onion;
 use sharedlib::util::{backward, forward, Settings, State};
+use std::cmp::min;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
-use std::cmp::min;
 
 // we want to make sure we connect to the intermediate server in our rounds
 use sharedlib::head_rpc::{
     BACKWARDS_MESSAGES, LOCAL_ROUND_ENDED, PROCESSED_BACKWARDS_MESSAGES, REMOTE_ROUND_ENDED,
-    ROUND_NUM, REQUEST_RESPONSE_BLOCK
+    REQUEST_RESPONSE_BLOCK, ROUND_NUM,
 };
 use sharedlib::int_rpc::new_stub;
-use tokio_threadpool::blocking;
 use std::time::Instant;
+use tokio_threadpool::blocking;
 
 /*
  * This function is used to periodically end a round,
@@ -125,12 +125,15 @@ pub async fn send_m_vec(
                 // if we die again, that's it
                 await!(client.SendMessages(context::current(), msgs, true)).unwrap();
                 ()
-            },
-            Ok(o) => (),
+            }
+            Ok(_o) => (),
         }
     }
 
-    println!("NETWORK FORWARD TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    println!(
+        "NETWORK FORWARD TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
 
     Ok((s, m_vec))
 }
@@ -171,45 +174,45 @@ pub async fn waiting_for_next(s: State) -> io::Result<State> {
 
 pub async fn cleanup(s: State) -> io::Result<()> {
     /*blocking(|| {*/
-        // unshuffle the permutations
-        let now = Instant::now();
-        let mut _returning_m_vec = vec![];
-        {
-            let m_vec = BACKWARDS_MESSAGES.lock();
-            match m_vec {
-                Err(e) => _returning_m_vec = backward(s, e.into_inner().clone()),
-                Ok(v)  => _returning_m_vec = backward(s, v.clone())
-            }
+    // unshuffle the permutations
+    let now = Instant::now();
+    let mut _returning_m_vec = vec![];
+    {
+        let m_vec = BACKWARDS_MESSAGES.lock();
+        match m_vec {
+            Err(e) => _returning_m_vec = backward(s, e.into_inner().clone()),
+            Ok(v) => _returning_m_vec = backward(s, v.clone()),
         }
-        println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    }
+    println!("BACKWARDS TIME ELAPSED (ms): {}", now.elapsed().as_millis());
 
-        let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
-        let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
-            Err(e) => e.into_inner(),
-            Ok(v)  => v
-        };
-        unwrapped_p_backwards_m_vec.extend(_returning_m_vec);
+    let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
+    let mut unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
+        Err(e) => e.into_inner(),
+        Ok(v) => v,
+    };
+    unwrapped_p_backwards_m_vec.extend(_returning_m_vec);
 
-        // increment round count
-        let mut rn = ROUND_NUM.lock().unwrap();
-        *rn += 1;
-        // reset cond var flag for next round
-        {
-            let &(ref b, _) = &*REMOTE_ROUND_ENDED.clone();
-            let mut flag = b.lock().unwrap();
-            *flag = false;
-        }
-        //("Round number incremented, now: {}", *rn);
-
-        // send all the messages back!
-        let tuple = LOCAL_ROUND_ENDED.clone();
-        let &(ref b, ref cvar) = &*tuple;
+    // increment round count
+    let mut rn = ROUND_NUM.lock().unwrap();
+    *rn += 1;
+    // reset cond var flag for next round
+    {
+        let &(ref b, _) = &*REMOTE_ROUND_ENDED.clone();
         let mut flag = b.lock().unwrap();
-        *flag = true;
-        cvar.notify_all();
+        *flag = false;
+    }
+    //("Round number incremented, now: {}", *rn);
 
-        // we need to actually wait for all messages to be flushed!
-        //println!("waiting to finish replying to all msgs");
+    // send all the messages back!
+    let tuple = LOCAL_ROUND_ENDED.clone();
+    let &(ref b, ref cvar) = &*tuple;
+    let mut flag = b.lock().unwrap();
+    *flag = true;
+    cvar.notify_all();
+
+    // we need to actually wait for all messages to be flushed!
+    //println!("waiting to finish replying to all msgs");
     /*})
     .map_err(|_| panic!("the threadpool shut down"))
     .unwrap();*/
@@ -217,12 +220,11 @@ pub async fn cleanup(s: State) -> io::Result<()> {
     Ok(())
 }
 
-
 pub async fn block_on_replies() -> io::Result<()> {
     let p_backwards_m_vec = PROCESSED_BACKWARDS_MESSAGES.lock();
     let unwrapped_p_backwards_m_vec = match p_backwards_m_vec {
         Err(e) => e.into_inner(),
-        Ok(v)  => v
+        Ok(v) => v,
     };
     blocking(|| {
         let &(ref b, ref cvar) = &*REQUEST_RESPONSE_BLOCK.clone();

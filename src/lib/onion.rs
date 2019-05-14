@@ -73,7 +73,6 @@ pub fn keygen() -> (PrivateKey, PublicKey) {
 }
 
 pub fn derive(k1: &PrivateKey, k2: &PublicKey) -> DerivedKey {
-
     // key bytes to objects
     let upk = agreement::UnparsedPublicKey::new(AGREEMENT, k2);
     let usk = agreement::EphemeralPrivateKey::new(AGREEMENT, k1).unwrap();
@@ -87,15 +86,12 @@ pub fn derive(k1: &PrivateKey, k2: &PublicKey) -> DerivedKey {
     let mut aead_key: Vec<u8> = vec![0; AEAD.key_len()];
     extract_and_expand(&secret, &[], &mut aead_key);
 
-    DerivedKey {
-        secret,
-        aead_key,
-    }
+    DerivedKey { secret, aead_key }
 }
 
 fn extract_and_expand(secret: &[u8], info: &[u8], dest: &mut [u8]) {
     lazy_static! {
-        static ref SALT : hkdf::Salt = hkdf::Salt::new(DIGEST, &[]);
+        static ref SALT: hkdf::Salt = hkdf::Salt::new(DIGEST, &[]);
     }
 
     SALT.extract(secret)
@@ -105,8 +101,8 @@ fn extract_and_expand(secret: &[u8], info: &[u8], dest: &mut [u8]) {
 }
 
 pub fn encrypt(k: &DerivedKey, m: Message, p: EncryptionPurpose) -> Message {
-    let sealing_key = aead::SealingKey::new(AEAD, &k.aead_key)
-        .expect("Cannot encrypt using derived key.");
+    let sealing_key =
+        aead::SealingKey::new(AEAD, &k.aead_key).expect("Cannot encrypt using derived key.");
 
     let nonce = aead::Nonce::assume_unique_for_key(p.into());
 
@@ -123,8 +119,8 @@ pub fn encrypt(k: &DerivedKey, m: Message, p: EncryptionPurpose) -> Message {
 }
 
 pub fn decrypt(k: &DerivedKey, mut c: Message, p: EncryptionPurpose) -> Result<Message, ()> {
-    let opening_key = aead::OpeningKey::new(AEAD, &k.aead_key)
-        .expect("Cannot decrypt using derived key.");
+    let opening_key =
+        aead::OpeningKey::new(AEAD, &k.aead_key).expect("Cannot decrypt using derived key.");
 
     let nonce = aead::Nonce::assume_unique_for_key(p.into());
 

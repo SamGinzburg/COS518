@@ -27,13 +27,13 @@ use crate::send::rpc_put;
 use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::TryFutureExt;
-use std::{thread};
-use std::io;
 use sharedlib::keys::{get, get_keypair, PartyType};
-use sharedlib::onion::{PublicKey, PrivateKey, DerivedKey};
-use std::time::Duration;
-use std::sync::{Arc, Condvar, Mutex};
+use sharedlib::onion::{PrivateKey, PublicKey};
+use std::io;
 use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, Condvar, Mutex};
+use std::thread;
+use std::time::Duration;
 
 use tokio::runtime::Builder;
 
@@ -105,25 +105,7 @@ lazy_static! {
         m.clone()
     };
 
-    static ref keypair: (PrivateKey, PublicKey) = { 
-    let uid = HASHMAP
-        .get(&String::from("uid"))
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
-        get_keypair(PartyType::Client.with_id(uid)).unwrap() 
-    };
-
-    static ref remote_pub_key: PublicKey = { 
-    let remote_uid = HASHMAP
-        .get(&String::from("remote_uid"))
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
-        get(PartyType::Client.with_id(remote_uid)).unwrap()
-    };
-
-    static ref MY_PRIV_KEY: PrivateKey = { 
+    static ref MY_PRIV_KEY: PrivateKey = {
         let uid = HASHMAP
             .get(&String::from("uid"))
             .unwrap()
@@ -133,7 +115,7 @@ lazy_static! {
         priv_key
     };
 
-    static ref server_pub_keys: Vec<PublicKey> = {
+    static ref SERVER_PUB_KEYS: Vec<PublicKey> = {
         let mut spk = vec![];
         spk.push(get(PartyType::Server.with_id(0)).unwrap());
         spk.push(get(PartyType::Server.with_id(1)).unwrap());
@@ -142,10 +124,7 @@ lazy_static! {
     };
 }
 
-pub async fn spawn_many(
-    thread_id: usize,
-    remote_uid: usize
-) -> io::Result<()> {
+pub async fn spawn_many(thread_id: usize, remote_uid: usize) -> io::Result<()> {
     let uid = HASHMAP
         .get(&String::from("uid"))
         .unwrap()
@@ -159,7 +138,6 @@ pub async fn spawn_many(
         .parse::<u16>()
         .unwrap();
 
-
     await!(rpc_put(
         ip.to_string(),
         port,
@@ -167,14 +145,14 @@ pub async fn spawn_many(
         uid,
         remote_uid,
         thread_id
-    )).unwrap();
-
+    ))
+    .unwrap();
 
     Ok(())
 }
 
 fn main() {
-    let mut runtime = Builder::new()
+    let runtime = Builder::new()
         .blocking_threads(4096)
         .core_threads(4)
         .name_prefix("rpc-tpool-")
@@ -185,19 +163,19 @@ fn main() {
     tarpc::init(runtime.executor().compat());
 
     let connections = HASHMAP
-                        .get(&String::from("connections"))
-                        .unwrap()
-                        .parse::<usize>()
-                        .unwrap();
+        .get(&String::from("connections"))
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
 
     let mut threads = vec![];
     // parallel threads
     for x in 0..10 {
         println!("spawning #: {} threads/connections", connections);
-        for y in 1..(connections+1) {
+        for y in 1..(connections + 1) {
             let handler = thread::spawn(move || {
                 tokio::run(
-                        spawn_many(x, y)
+                    spawn_many(x, y)
                         .map_err(|e| eprintln!("RPC Error: {}", e))
                         .boxed()
                         .compat(),
