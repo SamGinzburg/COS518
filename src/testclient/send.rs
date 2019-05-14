@@ -1,23 +1,22 @@
 use sharedlib::client_util::wrap;
 use sharedlib::head_rpc::new_stub;
-use sharedlib::onion::{derive};
 use sharedlib::keys::{get, PartyType};
+use sharedlib::onion::derive;
 
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::string::String;
+use std::time::Instant;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
-use std::time::Instant;
-use tokio_threadpool::blocking;
 
-use crate::{server_pub_keys, MY_PRIV_KEY, BLOCK};
+use crate::{SERVER_PUB_KEYS, MY_PRIV_KEY};
 
 pub async fn rpc_put(
     server_addr: String,
     port: u16,
     message: String,
-    uid: usize,
+    _uid: usize,
     remote_uid: usize,
     thread_id: usize,
 ) -> io::Result<()> {
@@ -32,13 +31,7 @@ pub async fn rpc_put(
     let rpk = get(PartyType::Client.with_id(remote_uid * thread_id)).unwrap();
     let dk = derive(&MY_PRIV_KEY, &rpk);
 
-    let (_, enc_msg) = wrap(
-        rn,
-        message.as_bytes().to_vec(),
-        &rpk,
-        &dk,
-        &server_pub_keys,
-    );
+    let (_, enc_msg) = wrap(rn, message.as_bytes().to_vec(), &rpk, &dk, &SERVER_PUB_KEYS);
 
     let now = Instant::now();
     let _return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
