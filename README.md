@@ -1,6 +1,5 @@
-<aside class="warning">
-This system was built as a class project and is to be used for *educational purposes only*! This system is not intended for any production usage as a secure messaging service!
-</aside>
+# This system was built as a class project and is to be used for *educational purposes only*! This system is not intended for any production usage as a secure messaging service!
+
 
 
 This is a reproduction of the Vuvuzela system for COS 518 at Princeton University.
