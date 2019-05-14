@@ -1,3 +1,7 @@
+# This system was built as a class project and is to be used for *educational purposes only*! This system is not intended for any production usage as a secure messaging service!
+
+
+
 This is a reproduction of the Vuvuzela system for COS 518 at Princeton University.
 
 Vuvuzela [1] is a secure messaging system that protects client metadata. The system maintains very strong privacy guarantees compared to the anonymity system we learned about in class. Even if all but one of the servers are controlled by a malicious party, Vuvuzela completely hides client data and metadata.
@@ -12,6 +16,8 @@ This code uses the cargo build system. To build, run
 $ cargo build
 ```
 This produces six binaries: `setup`, `head_server`, `intermediate_server`, `deaddrop_server`, `testclient`, and `client`, each located in the `target/debug` subdirectory.
+
+This project was tested and confirmed to build/work with rustc 1.35.0-nightly (70f130954 2019-04-16).
 
 ## Setup and key distribution
 The `setup` binary must be run prior to using the system. It produces private and public keys and places them in the `keys` subdirectory. To run the system, the appropriate key files must be present. In particular:
