@@ -12,13 +12,12 @@ extern crate lazy_static;
 
 extern crate clap;
 extern crate cursive;
-extern crate futures;
-extern crate futures_await_async_macro;
 extern crate serde;
 extern crate sharedlib;
 extern crate tarpc;
 extern crate tarpc_bincode_transport;
 extern crate tokio;
+extern crate crossbeam_channel;
 
 use clap::{App, Arg};
 use cursive::view::*;
@@ -26,12 +25,10 @@ use cursive::views::*;
 use cursive::Cursive;
 use std::collections::HashMap;
 
-use crate::fetch::rpc_get;
 use crate::send::rpc_put;
 use crate::tarpc::futures::compat::Executor01CompatExt;
 use crate::tarpc::futures::FutureExt;
 use crate::tarpc::futures::TryFutureExt;
-use std::{thread, time};
 
 pub mod fetch;
 pub mod send;
@@ -123,20 +120,37 @@ fn send_message(s: &mut Cursive, message: &str) {
     input.push_str("\n");
     text_area.append(input.clone());
 
+    // set up cross thread cb for response
+    let communication = s.cb_sink();
+
+    let send = rpc_put(ip.to_string(),
+                       port,
+                       input.clone(),
+                       uid,
+                       remote_uid, communication.clone());
+
     // TODO: set ip/port combo via cli flags
     tokio::run(
-        rpc_put(ip.to_string(), port, input.clone(), uid, remote_uid)
-            .map_err(|e| eprintln!("RPC Error: {}", e))
-            .boxed()
-            .compat(),
+        (send)
+        .map_err(|e| eprintln!("RPC Error: {}", e))
+        .boxed()
+        .compat(),
     );
 }
+
+fn receive_message(s: &mut Cursive, message: &str) {
+    let mut text_area: ViewRef<TextView> = s.find_id("output").unwrap();
+
+    text_area.append(message);
+}
+
 
 fn main() {
     tarpc::init(tokio::executor::DefaultExecutor::current().compat());
 
     // set up main TUI context
     let mut cursive = Cursive::default();
+    //cursive.set_fps(10);
 
     //
     // Create a view tree with a TextArea for input, and a
@@ -167,6 +181,7 @@ fn main() {
     );
 
     // start fetching data from server once GUI is initialized
+    /*
     let handler = thread::spawn(|| loop {
         tokio::run(
             (rpc_get("127.0.0.1".to_string(), 8080))
@@ -176,8 +191,9 @@ fn main() {
         );
         thread::sleep(time::Duration::from_millis(1000));
     });
+    */
 
     // Starts the event loop.
     cursive.run();
-    handler.join().unwrap();
+    //handler.join().unwrap();
 }

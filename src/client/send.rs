@@ -7,6 +7,11 @@ use std::net::{IpAddr, SocketAddr};
 use std::string::String;
 use tarpc::{client, context};
 use tarpc_bincode_transport::connect;
+use crossbeam_channel::Sender;
+use cursive::CbFunc;
+use cursive::Cursive;
+use crate::receive_message;
+use std::ffi::CString;
 
 pub async fn rpc_put(
     server_addr: String,
@@ -14,6 +19,7 @@ pub async fn rpc_put(
     message: String,
     uid: usize,
     remote_uid: usize,
+    comm: Sender<Box<CbFunc>>,
 ) -> io::Result<()> {
     let server_addr = SocketAddr::new(IpAddr::V4(server_addr.parse().unwrap()), port);
     let transport = await!(connect(&server_addr)).unwrap();
@@ -45,20 +51,29 @@ pub async fn rpc_put(
     );
     // store the d_keys for when we receive a message at the end of the round
     // send it
-    println!("Encrypted msg: {:?}, len: {:?}", enc_msg, enc_msg.len());
-    let return_msg = await!(client.put(context::current(), enc_msg.clone())).unwrap();
-    println!("Response: {:?}, len: {:?}", return_msg, return_msg.len());
+    //println!("Encrypted msg: {:?}, len: {:?}", enc_msg, enc_msg.len());
+    let return_msg = await!(client.put(context::current(), enc_msg)).unwrap();
+    //println!("Response: {:?}, len: {:?}", return_msg, return_msg.len());
+    match unwrap(rn, return_msg.clone(), &pub_key, &dk, d_key.clone()) {
+        Ok(unwrapped_msg) => {
+            let mut msg = String::from_utf8(unwrapped_msg.to_owned()).unwrap();
+            let leaked_msg: &'static [u8] = Box::leak(msg.into_boxed_str()).as_bytes();
+            let mut output = String::from_utf8(leaked_msg.to_vec()).unwrap().clone();
+            output = output.trim_matches(char::from(0)).to_string();
 
-    if let Ok(unwrapped_msg) = unwrap(rn, return_msg.clone(), &pub_key, &dk, d_key.clone()) {
-        let output = String::from_utf8(unwrapped_msg).unwrap();
-        println!("{}\n", output);
-    } else if let Ok(_) = unwrap(rn, return_msg.clone(), &remote_pub_key, &dk, d_key) {
-        println!("Received original message: remote not present.");
-    } else {
-        println!("Could not decrypt: system error.");
+            output.insert_str(0, ": ");
+            output.insert_str(0, &remote_uid.to_string());
+            output.insert_str(0, "From ");
+
+            // make string c compat
+            let c_str = CString::new(output).unwrap();
+            let f = c_str.into_string().unwrap();
+
+            let _res = comm.send(Box::new(move |s: &mut Cursive| receive_message(s, &f)));
+        },
+        Ok(_) => println!("Received original message: remote not present."),
+        Err(e) => println!("Could not decrypt: system error."),
     }
-
-    //t_box.append(output.clone());
 
     Ok(())
 }
