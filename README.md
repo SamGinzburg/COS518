@@ -27,9 +27,10 @@ The servers must be started in reverse order, starting with the deaddrop server,
 ## Running the client
 The `testclient` binary can be used to simulate many users and reproduce our data. It too has options
 ```
-$ client -h
+$ testclient -h
 ```
 The `client` binary is still experimental, but is intended to provide command line input and output to the messaging system.
+As of right now, responses are printed to stdout instead of the TUI, since getting a 100% functioning GUI was not a priority of this project.
 
 # Tests
 Unit and integration tests can be run with
