@@ -22,6 +22,8 @@ All three server binaries must be run. For a list of options, run
 $ head_server -h
 ```
 
+The servers must be started in reverse order, starting with the deaddrop server, then the intermediate server, and lastly the head server.
+
 ## Running the client
 The `testclient` binary can be used to simulate many users and reproduce our data. It too has options
 ```
