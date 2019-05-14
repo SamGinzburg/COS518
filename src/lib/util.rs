@@ -25,17 +25,17 @@ pub fn forward<D>(
     settings: &Settings<D>,
 ) -> (State, Vec<onion::Message>)
 where
-    D: Distribution<u32> + Sync
+    D: Distribution<u32> + Sync,
 {
     let mut rng = rand::thread_rng();
     let n = input.len();
 
     // unwrap, decrypt, and store keys
-    let mut keys : Vec<onion::DerivedKey> = Vec::with_capacity(n);
-    let mut inners : Vec<onion::Message> = Vec::with_capacity(n);
+    let mut keys: Vec<onion::DerivedKey> = Vec::with_capacity(n);
+    let mut inners: Vec<onion::Message> = Vec::with_capacity(n);
 
     let now = Instant::now();
-    let unwrapped = input
+    let _unwrapped = input
         .par_iter()
         .map(|wrapped| {
             let (pk, cipher) = message::unwrap(&wrapped);
@@ -44,12 +44,16 @@ where
                 Ok(m) => m,
 
                 // for security, replace bad messages with fakes
-                Err(()) => message::blank(&message::Deaddrop::sample())
+                Err(()) => message::blank(&message::Deaddrop::sample()),
             };
 
-            (dk, inner) })
+            (dk, inner)
+        })
         .unzip_into_vecs(&mut keys, &mut inners);
-    println!("FORWARD DECRYPT TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    println!(
+        "FORWARD DECRYPT TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
 
     // add noise
     let n1 = settings.noise.sample(&mut rng);
@@ -59,34 +63,29 @@ where
     let m = n + adding;
 
     let now = Instant::now();
-    let noise1 = (0..n1)
-        .into_par_iter()
-        .map(|_| {
-            let m = message::blank(&message::Deaddrop::sample());
-            let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
-            wrapped
-        });
+    let noise1 = (0..n1).into_par_iter().map(|_| {
+        let m = message::blank(&message::Deaddrop::sample());
+        let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
+        wrapped
+    });
 
-    let noise2 = (0..n2)
-        .into_par_iter()
-        .flat_map(|_| {
-            let r : Vec<onion::Message> = (0..2)
-                .into_iter()
-                .map(|__| {
-                    let m = message::blank(&message::Deaddrop::sample());
-                    let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
-                    wrapped
-                })
-                .collect();
-            r
-        });
-    
-    let all : Vec<onion::Message> = inners
-        .into_par_iter()
-        .chain(noise1)
-        .chain(noise2)
-        .collect();
-    println!("FORWARD NOISE ADDITION TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    let noise2 = (0..n2).into_par_iter().flat_map(|_| {
+        let r: Vec<onion::Message> = (0..2)
+            .into_iter()
+            .map(|__| {
+                let m = message::blank(&message::Deaddrop::sample());
+                let (_dks, wrapped) = message::forward_onion_encrypt(&settings.other_pks, m);
+                wrapped
+            })
+            .collect();
+        r
+    });
+
+    let all: Vec<onion::Message> = inners.into_par_iter().chain(noise1).chain(noise2).collect();
+    println!(
+        "FORWARD NOISE ADDITION TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
 
     // permute
     let permutation = Permutation::sample(m);
@@ -104,19 +103,20 @@ where
 
 pub fn backward(state: State, input: Vec<onion::Message>) -> Vec<onion::Message> {
     // unpermute
-    let mut unpermuted = state.permutation.inverse().apply(input);
+    let unpermuted = state.permutation.inverse().apply(input);
 
     let now = Instant::now();
     // re-encrypt
     let result = unpermuted
         .into_par_iter()
         .zip(state.keys.par_iter())
-        .map(|(m, dk)| {
-            onion::encrypt(dk, m, onion::EncryptionPurpose::Backward)
-        })
+        .map(|(m, dk)| onion::encrypt(dk, m, onion::EncryptionPurpose::Backward))
         .collect();
 
-    println!("BACKWARDS Re-encrypt TIME ELAPSED (ms): {}", now.elapsed().as_millis());
+    println!(
+        "BACKWARDS Re-encrypt TIME ELAPSED (ms): {}",
+        now.elapsed().as_millis()
+    );
     result
 }
 
