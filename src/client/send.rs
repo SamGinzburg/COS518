@@ -56,9 +56,7 @@ pub async fn rpc_put(
     //println!("Response: {:?}, len: {:?}", return_msg, return_msg.len());
     match unwrap(rn, return_msg.clone(), &pub_key, &dk, d_key.clone()) {
         Ok(unwrapped_msg) => {
-            let mut msg = String::from_utf8(unwrapped_msg.to_owned()).unwrap();
-            let leaked_msg: &'static [u8] = Box::leak(msg.into_boxed_str()).as_bytes();
-            let mut output = String::from_utf8(leaked_msg.to_vec()).unwrap().clone();
+            let mut output = String::from_utf8(unwrapped_msg.to_vec()).unwrap().clone();
             output = output.trim_matches(char::from(0)).to_string();
 
             output.insert_str(0, ": ");
