@@ -2,7 +2,7 @@ This is a reproduction of the Vuvuzela system for COS 518 at Princeton Universit
 
 Vuvuzela [1] is a secure messaging system that protects client metadata. The system maintains very strong privacy guarantees compared to the anonymity system we learned about in class. Even if all but one of the servers are controlled by a malicious party, Vuvuzela completely hides client data and metadata.
 
-![Screenshot](conv.gif)
+![Screenshot](figures/conv.gif)
 
 
 
