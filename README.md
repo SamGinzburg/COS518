@@ -29,8 +29,13 @@ The `testclient` binary can be used to simulate many users and reproduce our dat
 ```
 $ testclient -h
 ```
-The `client` binary is still experimental, but is intended to provide command line input and output to the messaging system.
-As of right now, responses are printed to stdout instead of the TUI, since getting a 100% functioning GUI was not a priority of this project.
+The `client` binary is still experimental, but is intended to provide command line input and output to the messaging system. A user must specify the uid of the 'local' user and of the remote user being dialed within the system to run the client.
+
+```
+$ cargo run --bin client -- -n 1 -d 0
+```
+
+For example, would run the client with UID 1, dialing the client with UID 0.
 
 # Tests
 Unit and integration tests can be run with
