@@ -17,7 +17,7 @@ $ cargo build
 ```
 This produces six binaries: `setup`, `head_server`, `intermediate_server`, `deaddrop_server`, `testclient`, and `client`, each located in the `target/debug` subdirectory.
 
-This project was tested and confirmed to build with rustc 1.35.0-nightly (70f130954 2019-04-16).
+This project was tested and confirmed to build/work with rustc 1.35.0-nightly (70f130954 2019-04-16).
 
 ## Setup and key distribution
 The `setup` binary must be run prior to using the system. It produces private and public keys and places them in the `keys` subdirectory. To run the system, the appropriate key files must be present. In particular:
